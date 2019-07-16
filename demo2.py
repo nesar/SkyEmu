@@ -42,6 +42,8 @@ import os
 import math
 import logging
 import galsim
+import numpy as np
+import matplotlib.pyplot as plt
 
 def main(argv):
     """
@@ -56,18 +58,17 @@ def main(argv):
 
     gal_flux = 1.e5    # counts
     gal_r0 = 2.7       # arcsec
-    g1 = 0.1           #
-    g2 = 0.2           #
+    g1 = 0.8           # shear
+    g2 = 0.1           # shear
     psf_beta = 5       #
     psf_re = 1.0       # arcsec
     pixel_scale = 0.2  # arcsec / pixel
-    sky_level = 2.5e3  # counts / arcsec^2
+    sky_level = 2.5e1  # counts / arcsec^2
 
     # This time use a particular seed, so the image is deterministic.
     # This is the same seed that is used in demo2.yaml, which means the images produced
     # by the two methods will be precisely identical.
     random_seed = 1534225
-
 
     logger.info('Starting demo script 2 using:')
     logger.info('    - sheared (%.2f,%.2f) exponential galaxy (flux = %.1e, scale radius = %.2f),',
@@ -127,11 +128,11 @@ def main(argv):
     if not os.path.isdir('output'):
         os.mkdir('output')
     file_name = os.path.join('output', 'demo2.fits')
-    file_name_epsf = os.path.join('output','demo2_epsf.fits')
+    file_name_epsf = os.path.join('output', 'demo2_epsf.fits')
     image.write(file_name)
     image_epsf.write(file_name_epsf)
-    logger.info('Wrote image to %r',file_name)
-    logger.info('Wrote effective PSF image to %r',file_name_epsf)
+    logger.info('Wrote image to %r', file_name)
+    logger.info('Wrote effective PSF image to %r', file_name_epsf)
 
     results = galsim.hsm.EstimateShear(image, image_epsf)
 
@@ -143,18 +144,15 @@ def main(argv):
                 results.corrected_e1, results.corrected_e2)
     logger.info('Expected values in the limit that noise and non-Gaussianity are negligible:')
     exp_shear = galsim.Shear(g1=g1, g2=g2)
-    logger.info('    g1, g2 = %.3f, %.3f', exp_shear.e1,exp_shear.e2)
+    logger.info('    g1, g2 = %.3f, %.3f', exp_shear.e1, exp_shear.e2)
 
 ## NR added
 
-    import numpy as np
-#    image_np = final.drawImage(scale=pixel_scale).array()
-
-    import matplotlib.pylab as plt
-    
-    plt.imshow(image)
-    
+    plt.imshow(image.array)
     plt.show()
 
+    return image
+
+
 if __name__ == "__main__":
-    main(sys.argv)
+    image = main(sys.argv)
