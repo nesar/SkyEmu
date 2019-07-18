@@ -111,7 +111,29 @@ x_test = K.cast_to_floatx(x_test)
 
 # Architecture
 
-inputs = Input(shape=(original_dim,))
+# inputs = Input(shape=(original_dim,))
+
+
+input_shape = (x_train.shape[1], x_train.shape[1])
+
+inputs = Input(shape= input_shape, name='encoder_input')
+x = inputs
+for i in range(2):
+    filters *= 2
+    x = Conv2D(filters=filters,
+               kernel_size=kernel_size,
+               activation='relu',
+               strides=2,
+               padding='same')(x)
+
+# shape info needed to build decoder model
+shape = K.int_shape(x)
+
+# generate latent vector Q(z|X)
+x = Flatten()(x)
+
+
+
 
 h_q3 = Dense(intermediate_dim3, activation='linear')(inputs)  # ADDED intermediate layer
 h_q2 = Dense(intermediate_dim2, activation='linear')(h_q3)  # ADDED intermediate layer
