@@ -57,13 +57,17 @@ def main(argv):
     logger = logging.getLogger("demo2")
 
     gal_flux = 1.e5    # counts
-    gal_r0 = 2.7       # arcsec
+    gal_r0 = 0.7       # arcsec radius
     g1 = 0.8           # shear
     g2 = 0.1           # shear
     psf_beta = 5       #
     psf_re = 1.0       # arcsec
+
+    # Fixed parameters
+    nx = 33
+    ny = 33
     pixel_scale = 0.2  # arcsec / pixel
-    sky_level = 2.5e1  # counts / arcsec^2
+    sky_level = 0  # counts / arcsec^2
 
     # This time use a particular seed, so the image is deterministic.
     # This is the same seed that is used in demo2.yaml, which means the images produced
