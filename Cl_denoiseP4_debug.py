@@ -273,7 +273,7 @@ print(vae.summary())
 #TRAIN
 
 
-# checkpoint
+# checkpoint : Save 
 
 Checkpoint = False
 

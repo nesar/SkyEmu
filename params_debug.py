@@ -1,11 +1,11 @@
 ######################## PARAMETERS ##########################
 
-original_dim = 33*33  #/2 +1  #2551 # mnist ~ 784
-intermediate_dim3 = 1024
-intermediate_dim2 = 512
-intermediate_dim1 = 256
-intermediate_dim0 = 128
-intermediate_dim = 64
+original_dim = 33*33  # /2 +1  #2551 # mnist ~ 784
+intermediate_dim3 = 512
+intermediate_dim2 = 128
+# intermediate_dim1 = 256
+# intermediate_dim0 = 128
+# intermediate_dim = 64
 latent_dim = 32
 
 # ClID = ['TT', 'EE', 'BB', 'TE'][0]
@@ -15,8 +15,8 @@ num_para = 5
 
 batch_size = 16
 num_epochs = 100  #7500 # 7500 #8000 #7500 # 20  #200 # 7500 # 200  #110 #50
-epsilon_mean = 0.0  #0.0 # 1.0
-epsilon_std = 1e-4  #1e-4 ## original = 1.0, smaller the better 1e-4
+epsilon_mean = 1.  #0.0 # 1.0
+epsilon_std = 1.  #1e-4 ## original = 1.0, smaller the better 1e-4
 learning_rate = 1e-4  #1e-4
 decay_rate = 0.1 #1.0
 
