@@ -16,7 +16,7 @@ def rescale01(xmin, xmax, f):
     return (f - xmin) / (xmax - xmin)
 
 
-num_evals = 512
+num_evals = 64
 num_params = 5
 verbose = True
 np.random.seed(7)

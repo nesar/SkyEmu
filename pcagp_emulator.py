@@ -37,7 +37,7 @@ def pca_reduction(X, ncomp=20):
     basis = pca.components_
 
     # Plot cumsum(explained_variance) versus component
-    plt.semilogy(np.cumsum(pca.explained_variance_ratio_)*100, 's')
+    plt.semilogy(pca.explained_variance_ratio_*100, 's')
     plt.ylabel('Explained Variance Ratio (%)', size=20)
     plt.xticks(size=20)
     plt.xlabel('Component', size=20)
@@ -61,7 +61,7 @@ def plot_pca(basis, weights):
     - basis : 2-D basis of the subspace (orthogonal vectors), (ncomp * imsize)
     - weights : 2-D weights i.e. projection of the training set X onto the subspace spanned by the basis (nsamp * ncomp)
     """
-    file_name = '../Data/lhc_512_5.txt'
+    file_name = '../Data/lhc_512_5_lownoise.txt'
     params = np.loadtxt(file_name)
 
     ncomp, imsize = basis.shape
@@ -100,7 +100,7 @@ def gp_fit(weights):
     - tmean, tmult : Rescaling factors
     """
     # Load and rescale parameters
-    file_name = '../Data/lhc_512_5.txt'
+    file_name = '../Data/lhc_512_5_lownoise.txt'
     params = np.loadtxt(file_name)
     params, tmean, tmult = rescale(params)
 
@@ -113,7 +113,7 @@ def gp_fit(weights):
     model.optimize()
 
     # Save model
-    model.save_model('../Data/GPmodel/gpfit', compress=True, save_data=True)
+    model.save_model('../Data/GPmodel/gpfit_lownoise', compress=True, save_data=True)
     return model, tmean, tmult
 
 
@@ -169,7 +169,7 @@ def rescale(params):
 
 
 # Load training set and rescale flux
-path = '../Data/output_tests/training.hdf5'
+path = '../Data/output_tests/training_512_5_lownoise.hdf5'
 f = h5py.File(path, 'r')
 X = np.array(f['galaxies'])
 xmax = np.max(X)
@@ -182,7 +182,7 @@ for i in range(10):
     params_new[i] = [np.random.uniform(1e4, 1e5), np.random.uniform(.1, 1.), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(.2, .4)]
 
 # Perform PCA
-pca, W = pca_reduction(X, ncomp=12)
+pca, W = pca_reduction(X, ncomp=14)
 # GP learning
 gp, tmean, tmult = gp_fit(W)
 
@@ -213,5 +213,5 @@ for i in range(10):
     plt.subplot(3, 10, 20+i+1)
     plt.imshow(abs(np.reshape(Xnew_em[i]*xmax, (nx, ny))-Xnew_gs[i]))
     mse = np.mean((np.reshape(Xnew_em[i]*xmax, (nx, ny))-Xnew_gs[i])**2)
-    plt.title('MSE = '+str(mse))
+    plt.title('MSE = '+str(mse), size=10)
 plt.show()

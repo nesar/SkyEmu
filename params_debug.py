@@ -1,29 +1,29 @@
 ######################## PARAMETERS ##########################
 
-original_dim = 2549#/2 +1  #2551 # mnist ~ 784
-intermediate_dim3 = 1600
-intermediate_dim2 = 1024
-intermediate_dim1 = 512
-intermediate_dim0 = 256
-intermediate_dim = 128
+original_dim = 33*33  #/2 +1  #2551 # mnist ~ 784
+intermediate_dim3 = 1024
+intermediate_dim2 = 512
+intermediate_dim1 = 256
+intermediate_dim0 = 128
+intermediate_dim = 64
 latent_dim = 32
 
-ClID = ['TT', 'EE', 'BB', 'TE'][0]
-num_train = 1024
-num_test = 25
+# ClID = ['TT', 'EE', 'BB', 'TE'][0]
+num_train = 512
+num_test = 64
 num_para = 5
 
-batch_size = 32
-num_epochs =  10 #7500 # 7500 #8000 #7500 # 20  #200 # 7500 # 200  #110 #50
-epsilon_mean = 0.0 #0.0 # 1.0
-epsilon_std =  1e-4 #1e-4 ## original = 1.0, smaller the better 1e-4
-learning_rate =  1e-3 #1e-4
-decay_rate = 0.5 #1.0
+batch_size = 16
+num_epochs = 100  #7500 # 7500 #8000 #7500 # 20  #200 # 7500 # 200  #110 #50
+epsilon_mean = 0.0  #0.0 # 1.0
+epsilon_std = 1e-4  #1e-4 ## original = 1.0, smaller the better 1e-4
+learning_rate = 1e-4  #1e-4
+decay_rate = 0.1 #1.0
 
 noise_factor = 0.0 # 0.0 necessary
 
 ######################## I/O #################################
-MainDir = '../Cl_data/'
+MainDir = '../'
 
 DataDir = MainDir+'Data/'
 PlotsDir = MainDir+'Plots/'

@@ -56,6 +56,11 @@ def GenGalIm(params):
     # Draw the image
     image = final.drawImage(nx=nx, ny=ny, scale=pixel_scale)
 
+    # Add Poisson noise eventually
+    # rng = galsim.BaseDeviate(150000)
+    # noise = galsim.PoissonNoise(rng)
+    # image.addNoise(noise)
+
     # t2 = time()
     # print('Time : '+str(t2-t1))
 
@@ -92,7 +97,7 @@ def SaveGal(images, fname, dname):
     """
     if not os.path.isdir('../Data/output_tests'):
         os.mkdir('output_tests')
-    file_name = os.path.join('../Data/output_tests', fname)
+    file_name = os.path.join('../Data/output_tests', fname+'.hdf5')
     f = h5py.File(file_name, 'w')
     f.create_dataset(dname, data=images)
     f.close()
@@ -109,7 +114,7 @@ def PlotGal():
     """
 
     # Parameters
-    galflux = 1e5
+    galflux = 1e4
     galradius = 0.5
     g1 = 0.1
     g2 = 0.4
@@ -123,5 +128,6 @@ def PlotGal():
     plt.show()
 
 
-file_name = '../Data/lhc_512_5.txt'
-SaveGal(GenSetGal(file_name), 'training.hdf5', 'galaxies')
+file_name = '../Data/lhc_64_5_test.txt'
+SaveGal(GenSetGal(file_name), 'test_64_5', 'galaxies')
+# PlotGal()

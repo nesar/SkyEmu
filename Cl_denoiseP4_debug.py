@@ -169,13 +169,13 @@ x_train = K.cast_to_floatx(x_train)
 
 # Q(z|X) -- encoder
 inputs = Input(shape=(original_dim,))
-h_q3 = Dense(intermediate_dim3, activation='linear')(inputs) # ADDED intermediate layer
-h_q2 = Dense(intermediate_dim2, activation='linear')(h_q3) # ADDED intermediate layer
-h_q1 = Dense(intermediate_dim1, activation='linear')(h_q2) # ADDED intermediate layer
-h_q0 = Dense(intermediate_dim0, activation='linear')(h_q1) # ADDED intermediate layer
+h_q3 = Dense(intermediate_dim3, activation='linear')(inputs)  # ADDED intermediate layer
+h_q2 = Dense(intermediate_dim2, activation='linear')(h_q3)  # ADDED intermediate layer
+h_q1 = Dense(intermediate_dim1, activation='linear')(h_q2)  # ADDED intermediate layer
+h_q0 = Dense(intermediate_dim0, activation='linear')(h_q1)  # ADDED intermediate layer
 h_q = Dense(intermediate_dim, activation='linear')(h_q0)
-mu = Dense(latent_dim, activation='linear')(h_q)
-log_sigma = Dense(latent_dim, activation='linear')(h_q)
+mu = Dense(latent_dim, activation='linear')(h_q) # mean
+log_sigma = Dense(latent_dim, activation='linear')(h_q) # log-sigma
 
 # ----------------------------------------------------------------------------
 
@@ -190,7 +190,7 @@ z = Lambda(sample_z)([mu, log_sigma])
 
 # ----------------------------------------------------------------------------
 
-# P(X|z) -- decoder
+# P(X|z) -- decoder in 2 steps (for saving later)
 decoder_hidden = Dense(latent_dim, activation='linear')
 decoder_hidden0 = Dense(intermediate_dim, activation='linear') # ADDED intermediate layer
 decoder_hidden1 = Dense(intermediate_dim0, activation='linear') # ADDED intermediate layer
@@ -255,9 +255,7 @@ def vae_loss(y_true, y_pred):
     return recon + kl
 
 
-
-adam = optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None,
-                          decay=decay_rate)
+adam = optimizers.Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=decay_rate)
 
 vae.compile(optimizer='adam', loss=vae_loss)
 
