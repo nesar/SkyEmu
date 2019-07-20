@@ -338,11 +338,11 @@ if PlotScatter:
     plt.figure(figsize=(6, 6))
 
     x_train_encoded = encoder.predict(x_train)
-    plt.scatter(x_train_encoded[:, 0], x_train_encoded[:, 1], c=y_train[:, 0], cmap='spring')
+    plt.scatter(x_train_encoded[0][:, 0], x_train_encoded[0][:, 1], c=y_train[:, 0], cmap='spring')
     plt.colorbar()
 
     x_test_encoded = encoder.predict(x_test)
-    plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test[:, 0], cmap='copper')
+    plt.scatter(x_test_encoded[0][:, 0], x_test_encoded[0][:, 1], c=y_test[:, 0], cmap='copper')
     plt.colorbar()
     # plt.title(fileOut)
     plt.savefig('cvae_Scatter_z'+'.png')
