@@ -57,9 +57,9 @@ def GenGalIm(params):
     image = final.drawImage(nx=nx, ny=ny, scale=pixel_scale)
 
     # Add Poisson noise eventually
-    # rng = galsim.BaseDeviate(150000)
-    # noise = galsim.PoissonNoise(rng)
-    # image.addNoise(noise)
+    rng = galsim.BaseDeviate(150000)
+    noise = galsim.PoissonNoise(rng)
+    image.addNoise(noise)
 
     # t2 = time()
     # print('Time : '+str(t2-t1))
@@ -128,6 +128,6 @@ def PlotGal():
     plt.show()
 
 
-file_name = '../Data/lhc_64_5_test.txt'
-SaveGal(GenSetGal(file_name), 'test_64_5', 'galaxies')
+file_name = '../Data/lhc_64_5_testing.txt'
+SaveGal(GenSetGal(file_name), 'test_64_5_testing', 'galaxies')
 # PlotGal()

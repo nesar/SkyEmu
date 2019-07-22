@@ -15,6 +15,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import os
+import h5py
+
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+def rescale(params):
+    """
+    Rescales parameters between -1 and 1.
+    Input :
+    - params : physical parameters
+    Output :
+    - params_new : rescaled parameters
+    - theta_mean, theta_mult : rescaling factors
+    """
+    theta_mean = np.mean(params, axis=0)
+    theta_mult = np.max(params - theta_mean, axis=0)
+    return (params - theta_mean) * theta_mult**-1, theta_mean, theta_mult
 
 
 # reparameterization trick
@@ -22,11 +39,9 @@ import os
 # then z = z_mean + sqrt(var)*eps
 def sampling(args):
     """Reparameterization trick by sampling fr an isotropic unit Gaussian.
-
-    # Arguments
+     Arguments
         args (tensor): mean and log of variance of Q(z|X)
-
-    # Returns
+     Returns
         z (tensor): sampled latent vector
     """
 
@@ -43,8 +58,7 @@ def plot_results(models,
                  batch_size=128,
                  model_name="vae_mnist"):
     """Plots labels and MNIST digits as function of 2-dim latent vector
-
-    # Arguments
+        Arguments
         models (tuple): encoder and decoder models
         data (tuple): test data and label
         batch_size (int): prediction batch size
@@ -100,28 +114,86 @@ def plot_results(models,
     plt.show()
 
 
+################ edits ########################
 # MNIST dataset
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+(x_train1, y_train1), (x_test1, y_test1) = mnist.load_data()
+image_size1 = x_train1.shape[1]
+x_train1 = np.reshape(x_train1, [-1, image_size1, image_size1, 1])
+x_test1 = np.reshape(x_test1, [-1, image_size1, image_size1, 1])
 
+# Load training/testing set
+DataDir = '../Data/'
+x_train = np.array(h5py.File(DataDir + '/output_tests/test_512_5_training.hdf5', 'r')['galaxies'])[:, :32, :32]
+x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])[:, :32, :32]
+
+y_train = np.loadtxt(DataDir + 'lhc_512_5_training.txt')
+y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
+
+# x_train = Trainfiles[:, num_para+2:]
+# x_test = Testfiles[:, num_para+2:]
+# y_train = Trainfiles[:, 0: num_para]
+# y_test =  Testfiles[:, 0: num_para]
+
+print(x_train.shape, 'train sequences')
+print(x_test.shape, 'test sequences')
+print(y_train.shape, 'train sequences')
+print(y_test.shape, 'test sequences')
+
+
+# Rescaling
+xmin = np.min(x_train)
+xmax = np.max(x_train) - xmin
+x_train = (x_train - xmin) / xmax
+x_test = (x_test - xmin) / xmax
+
+y_train, ymean, ymult = rescale(y_train)
+y_test = (y_test - ymean) * ymult**-1
+
+# print(y_train)
+# print('----')
+# print(y_test)
+
+# x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1]*, x_train.shape[2]))
+# x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1]*x_test.shape[2]))
+
+print(x_train.shape)
+print(x_test.shape)
+
+print(x_train1.shape)
+print(x_test1.shape)
+
+x_train = K.cast_to_floatx(x_train)
+x_test = K.cast_to_floatx(x_test)
+
+################################################
 image_size = x_train.shape[1]
 x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
 x_test = np.reshape(x_test, [-1, image_size, image_size, 1])
-x_train = x_train.astype('float32') / 255
-x_test = x_test.astype('float32') / 255
+
+################################################
+
+
+x_train = x_train.astype('float32')  # / 255
+x_test = x_test.astype('float32')  # / 255
 
 # network parameters
 input_shape = (image_size, image_size, 1)
-batch_size = 128
-kernel_size = 3
+batch = 32
+kernel_size = 4
+n_conv = 1
 filters = 16
-latent_dim = 2
-epochs = 2
+interm_dim = 64
+latent_dim = 32
+epochs = 200
+
+learning_rate = 1e-4
+decay_rate = 1e-1
 
 # VAE model = encoder + decoder
 # build encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
 x = inputs
-for i in range(2):
+for i in range(n_conv):
     filters *= 2
     x = Conv2D(filters=filters,
                kernel_size=kernel_size,
@@ -134,7 +206,7 @@ shape = K.int_shape(x)
 
 # generate latent vector Q(z|X)
 x = Flatten()(x)
-x = Dense(16, activation='relu')(x)
+# x = Dense(interm_dim, activation='relu')(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
@@ -149,10 +221,11 @@ plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 
 # build decoder model
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
+# x = Dense(interm_dim, activation='relu')(latent_inputs)
 x = Dense(shape[1] * shape[2] * shape[3], activation='relu')(latent_inputs)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
-for i in range(2):
+for i in range(n_conv):
     x = Conv2DTranspose(filters=filters,
                         kernel_size=kernel_size,
                         activation='relu',
@@ -175,41 +248,97 @@ plot_model(decoder, to_file='vae_cnn_decoder.png', show_shapes=True)
 outputs = decoder(encoder(inputs)[2])
 vae = Model(inputs, outputs, name='vae')
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    help_ = "Load h5 model trained weights"
-    parser.add_argument("-w", "--weights", help=help_)
-    help_ = "Use mse loss instead of binary cross entropy (default)"
-    parser.add_argument("-m", "--mse", help=help_, action='store_true')
-    args = parser.parse_args()
-    models = (encoder, decoder)
-    data = (x_test, y_test)
+####### main function #######
+# parser = argparse.ArgumentParser()
+# help_ = "Load h5 model trained weights"
+# parser.add_argument("-w", "--weights", help=help_)
+# help_ = "Use mse loss instead of binary cross entropy (default)"
+# parser.add_argument("-m", "--mse", help=help_, action='store_true')
+# args = parser.parse_args()
+models = (encoder, decoder)
+data = (x_test, y_test)
 
-    # VAE loss = mse_loss or xent_loss + kl_loss
-    if args.mse:
-        reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
-    else:
-        reconstruction_loss = binary_crossentropy(K.flatten(inputs),
-                                                  K.flatten(outputs))
+# VAE loss = mse_loss or xent_loss + kl_loss
+# if args.mse:
+#     reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
+# else:
+reconstruction_loss = binary_crossentropy(K.flatten(inputs), K.flatten(outputs))
 
-    reconstruction_loss *= image_size * image_size
-    kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
-    kl_loss = K.sum(kl_loss, axis=-1)
-    kl_loss *= -0.5
-    vae_loss = K.mean(reconstruction_loss + kl_loss)
-    vae.add_loss(vae_loss)
-    vae.compile(optimizer='rmsprop')
-    vae.summary()
-    plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
+reconstruction_loss *= image_size * image_size
+kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+kl_loss = K.sum(kl_loss, axis=-1)
+kl_loss *= -0.5
+vae_loss = K.mean(reconstruction_loss + kl_loss)
+vae.add_loss(vae_loss)
+vae.compile(optimizer='rmsprop')
+K.set_value(vae.optimizer.lr, learning_rate)
+K.set_value(vae.optimizer.decay, decay_rate)
+vae.summary()
+plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
-    if args.weights:
-        vae.load_weights(args.weights)
-    else:
-        # train the autoencoder
-        vae.fit(x_train,
-                epochs=epochs,
-                batch_size=batch_size,
-                validation_data=(x_test, None))
-        vae.save_weights('vae_cnn_mnist.h5')
+# if args.weights:
+#     vae.load_weights(args.weights)
+# else:
+# train the autoencoder
+vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
+# vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
-    plot_results(models, data, batch_size=batch_size, model_name="vae_cnn")
+vae.save_weights('vae_cnn_mnist.h5')
+
+# plot_results(models, data, batch_size=batch_size, model_name="vae_cnn")
+# Saving
+# ----------------------------------------------------------------------------
+
+x_train_encoded = encoder.predict(x_train)
+
+x_train_encoded = K.cast_to_floatx(x_train_encoded)
+
+x_train_decoded = decoder.predict(x_train_encoded[0])
+
+x_test_encoded = encoder.predict(x_test)
+
+x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
+
+x_test_decoded = decoder.predict(x_test_encoded)
+
+np.savetxt(DataDir+'cvae_encoded_xtrainP'+'.txt', x_train_encoded[0])
+np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
+
+# np.save(DataDir+'para5_'+str(num_train)+'.npy', y_train)
+# -------------------- Save model/weights --------------------------
+
+
+# -------------------- Plotting routines --------------------------
+
+plt.figure()
+for i in range(10):
+    plt.subplot(2, 10, i+1)
+    plt.imshow(np.reshape(x_train[i], (image_size, image_size)))
+    # plt.title('Emulated image using PCA + GP '+str(i))
+    # plt.colorbar()
+    plt.subplot(2, 10, 10+i+1)
+    plt.imshow(np.reshape(x_train_decoded[i], (image_size, image_size)))
+    # plt.title('Simulated image using GalSim '+str(i))
+    # plt.colorbar()
+
+plt.show()
+
+PlotScatter = True
+if PlotScatter:
+
+    w1 = 1
+    w2 = 2
+    # display a 2D plot of latent space (just 2 dimensions)
+    plt.figure(figsize=(6, 6))
+
+    x_train_encoded = encoder.predict(x_train)
+    plt.scatter(x_train_encoded[0][:, w1], x_train_encoded[0][:, w2], c=y_train[:, 0], cmap='spring')
+    plt.colorbar()
+
+    x_test_encoded = encoder.predict(x_test)
+    plt.scatter(x_test_encoded[0][:, w1], x_test_encoded[0][:, w2], c=y_test[:, 0], cmap='copper')
+    plt.colorbar()
+    # plt.title(fileOut)
+    plt.savefig('cvae_Scatter_z'+'.png')
+
+plt.show()

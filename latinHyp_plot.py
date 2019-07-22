@@ -20,6 +20,7 @@ num_evals = 64
 num_params = 5
 verbose = True
 np.random.seed(7)
+set_name = 'testing'
 
 #########################################################################
 ####### Parameters -- these should follow the following syntax ########
@@ -124,7 +125,7 @@ if verbose:
     # plt.savefig('/../Data/Plots/LatinSq_delete.pdf', figsize=(5000, 5000), bbox_inches="tight", dpi=900)
     plt.show()
 
-np.savetxt('lhc_'+str(num_evals)+'_'+str(num_params)+'.txt', AllCombinations)
+np.savetxt('lhc_'+str(num_evals)+'_'+str(num_params)+'_'+set_name+'.txt', AllCombinations)
 
 if verbose:
     print(AllCombinations)
