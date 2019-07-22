@@ -49,7 +49,7 @@ def sampling(args):
     batch = K.shape(z_mean)[0]
     dim = K.int_shape(z_mean)[1]
     # by default, random_normal has mean=0 and std=1.0
-    epsilon = K.random_normal(shape=(batch, dim))
+    epsilon = K.random_normal(shape=(batch, dim), mean=epsilon_mean, stddev=epsilon_std)
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
@@ -123,10 +123,10 @@ x_test1 = np.reshape(x_test1, [-1, image_size1, image_size1, 1])
 
 # Load training/testing set
 DataDir = '../Data/'
-x_train = np.array(h5py.File(DataDir + '/output_tests/test_512_5_training.hdf5', 'r')['galaxies'])[:, :32, :32]
-x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])[:, :32, :32]
+x_train = np.array(h5py.File(DataDir + '/output_tests/training_512_5.hdf5', 'r')['galaxies'])[:, :32, :32]
+x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5.hdf5', 'r')['galaxies'])[:, :32, :32]
 
-y_train = np.loadtxt(DataDir + 'lhc_512_5_training.txt')
+y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
 y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
 
 # x_train = Trainfiles[:, num_para+2:]
@@ -185,6 +185,9 @@ filters = 16
 interm_dim = 64
 latent_dim = 32
 epochs = 200
+
+epsilon_mean = 0.
+epsilon_std = 1e-4
 
 learning_rate = 1e-4
 decay_rate = 1e-1
