@@ -16,9 +16,11 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import h5py
+import GPy
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 
 def rescale(params):
     """
@@ -124,7 +126,7 @@ x_test1 = np.reshape(x_test1, [-1, image_size1, image_size1, 1])
 # Load training/testing set
 DataDir = '../Data/'
 x_train = np.array(h5py.File(DataDir + '/output_tests/training_512_5.hdf5', 'r')['galaxies'])[:, :32, :32]
-x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5.hdf5', 'r')['galaxies'])[:, :32, :32]
+x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])[:, :32, :32]
 
 y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
 y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
@@ -180,10 +182,10 @@ x_test = x_test.astype('float32')  # / 255
 input_shape = (image_size, image_size, 1)
 batch = 32
 kernel_size = 4
-n_conv = 1
+n_conv = 2
 filters = 16
-interm_dim = 64
-latent_dim = 32
+interm_dim = 128
+latent_dim = 20
 epochs = 200
 
 epsilon_mean = 0.
@@ -209,7 +211,7 @@ shape = K.int_shape(x)
 
 # generate latent vector Q(z|X)
 x = Flatten()(x)
-# x = Dense(interm_dim, activation='relu')(x)
+x = Dense(interm_dim, activation='relu')(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
@@ -224,8 +226,8 @@ plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 
 # build decoder model
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
-# x = Dense(interm_dim, activation='relu')(latent_inputs)
-x = Dense(shape[1] * shape[2] * shape[3], activation='relu')(latent_inputs)
+x = Dense(interm_dim, activation='relu')(latent_inputs)
+x = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
 
 for i in range(n_conv):
@@ -286,7 +288,7 @@ plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
 # vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
-vae.save_weights('vae_cnn_mnist.h5')
+vae.save_weights('vae_cnn_galsim.h5')
 
 # plot_results(models, data, batch_size=batch_size, model_name="vae_cnn")
 # Saving
@@ -298,31 +300,90 @@ x_train_encoded = K.cast_to_floatx(x_train_encoded)
 
 x_train_decoded = decoder.predict(x_train_encoded[0])
 
-x_test_encoded = encoder.predict(x_test)
+# x_test_encoded = encoder.predict(x_test)
 
-x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
+# x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
 
-x_test_decoded = decoder.predict(x_test_encoded)
+# x_test_decoded = decoder.predict(x_test_encoded)
 
 np.savetxt(DataDir+'cvae_encoded_xtrainP'+'.txt', x_train_encoded[0])
-np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
+# np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
 
-# np.save(DataDir+'para5_'+str(num_train)+'.npy', y_train)
-# -------------------- Save model/weights --------------------------
+# ---------------------- GP fitting -------------------------------
+
+
+def gp_fit(weights, y_train):
+    """
+    Learns the GP related to the weigths matrix
+    Input :
+    - weights : From encoder (2-D) : x_train_encoded
+    - y_train : Physical parameters to interpolate
+
+    Output :
+    - model : GP model
+    """
+    # Set the kernel
+    # kernel = GPy.kern.Matern52(input_dim=params.shape[1], variance=.1, lengthscale=.1)
+    kernel = GPy.kern.Matern52(input_dim=y_train.shape[1])
+
+    # GP Regression
+    model = GPy.models.GPRegression(y_train, weights, kernel=kernel)
+    model.optimize()
+
+    # Save model
+    model.save_model('../Data/GPmodel/gpfit_cvae', compress=True, save_data=True)
+    return model
+
+
+def gp_predict(model, params):
+    """
+    Predicts the weights matrix to feed inverse PCA from physical parameters.
+
+    Input :
+    - model : GP model
+    - params : physical parameters (flux, radius, shear profile, psf fwhm)
+
+    Output :
+    - predic[0] : predicted weights
+    """
+    predic = model.predict(params)
+    return predic[0]
+
+
+gpmodel = gp_fit(x_train_encoded[0], y_train)
+
+x_test_encoded = gp_predict(gpmodel, y_test)
+
+x_test_decoded = decoder.predict(x_test_encoded)
 
 
 # -------------------- Plotting routines --------------------------
 
 plt.figure()
 for i in range(10):
-    plt.subplot(2, 10, i+1)
+    plt.subplot(3, 10, i+1)
     plt.imshow(np.reshape(x_train[i], (image_size, image_size)))
     # plt.title('Emulated image using PCA + GP '+str(i))
     # plt.colorbar()
-    plt.subplot(2, 10, 10+i+1)
+    plt.subplot(3, 10, 10+i+1)
     plt.imshow(np.reshape(x_train_decoded[i], (image_size, image_size)))
     # plt.title('Simulated image using GalSim '+str(i))
     # plt.colorbar()
+    plt.subplot(3, 10, 20+i+1)
+    plt.imshow(np.reshape(abs(x_train_decoded[i]-x_train[i]), (image_size, image_size)))
+
+plt.figure()
+for i in range(10):
+    plt.subplot(3, 10, i+1)
+    plt.imshow(np.reshape(x_test[i], (image_size, image_size)))
+    # plt.title('Emulated image using PCA + GP '+str(i))
+    # plt.colorbar()
+    plt.subplot(3, 10, 10+i+1)
+    plt.imshow(np.reshape(x_test_decoded[i], (image_size, image_size)))
+    # plt.title('Simulated image using GalSim '+str(i))
+    # plt.colorbar()
+    plt.subplot(3, 10, 20+i+1)
+    plt.imshow(np.reshape(abs(x_test_decoded[i]-x_test[i]), (image_size, image_size)))
 
 plt.show()
 
