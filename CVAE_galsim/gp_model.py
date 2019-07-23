@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jul 22 2019
+
+@author: cguilloteau
+"""
+
 import numpy as np
 # import matplotlib.pyplot as plt
 import GPy

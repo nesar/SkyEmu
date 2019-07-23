@@ -186,7 +186,7 @@ n_conv = 2
 filters = 16
 interm_dim = 128
 latent_dim = 20
-epochs = 200
+epochs = 1000
 
 epsilon_mean = 0.
 epsilon_std = 1e-4
@@ -404,5 +404,17 @@ if PlotScatter:
     plt.colorbar()
     # plt.title(fileOut)
     plt.savefig('cvae_Scatter_z'+'.png')
+
+    # Plot losses
+    n_epochs = np.arange(1, epochs+1)
+    train_loss = vae.history.history['loss']
+    val_loss = np.ones_like(train_loss)
+    fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
+    ax.plot(n_epochs, train_loss, '-', lw=1.5)
+    ax.plot(n_epochs, val_loss, '-', lw=1.5)
+    ax.set_ylabel('loss')
+    ax.set_xlabel('epochs')
+    ax.legend(['train loss', 'val loss'])
+    plt.tight_layout()
 
 plt.show()

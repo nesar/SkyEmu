@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jul 22 2019
+
+@author: cguilloteau
+"""
+
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -191,8 +200,13 @@ plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 # ------------------------- Training -----------------------------------------
 vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
 
-# Sqve weights
-vae.save_weights('vae_cnn_galsim.h5')
+# Save weights and models
+vae.save(DataDir+'cvae_model_galsim.h5')
+vae.save_weights(DataDir+'cvae_weights_galsim.h5')
+encoder.save(DataDir+'cvae_encoder_model_galsim.h5')
+encoder.save_weights(DataDir+'cvae_encoder_weights_galsim.h5')
+decoder.save(DataDir+'cvae_decoder_model_galsim.h5')
+decoder.save_weights(DataDir+'cvae_decoder_weights_galsim.h5')
 
 # -------------- Training and testing sets encoding decoding -----------------
 
@@ -205,6 +219,7 @@ x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
 x_test_decoded = decoder.predict(x_test_encoded)
 
 np.savetxt(DataDir+'cvae_encoded_xtrain_512_5.txt', x_train_encoded[0])
+np.savetxt(DataDir+'cvae_decoded_xtrain_512_5.txt', x_train_decoded[0])
 # np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
 
 # ---------------------------- Plotting routines -----------------------------
@@ -230,7 +245,6 @@ for i in range(10):
     plt.imshow(np.reshape(x_test_decoded[i], (image_size, image_size)))
     # plt.title('Simulated image using GalSim '+str(i))
     # plt.colorbar()
-
 plt.show()
 
 PlotScatter = True
@@ -249,13 +263,24 @@ if PlotScatter:
     plt.figure(figsize=(6, 6))
 
     x_train_encoded = encoder.predict(x_train)
-    plt.scatter(x_train_encoded[0][:, w1], x_train_encoded[0][:, w2], c=y_train[:, 0], cmap='spring')
+    plt.scatter(x_train_encoded[0][:, w1], x_train_encoded[0][:, w2], c=y_train[:, 0], cmap='summer')
     plt.colorbar()
 
     x_test_encoded = encoder.predict(x_test)
-    plt.scatter(x_test_encoded[0][:, w1], x_test_encoded[0][:, w2], c=y_test[:, 0], cmap='copper')
+    plt.scatter(x_test_encoded[0][:, w1], x_test_encoded[0][:, w2], c=y_test[:, 0], cmap='cool')
     plt.colorbar()
     # plt.title(fileOut)
     plt.savefig('cvae_Scatter_z'+'.png')
 
+    # Plot losses
+    n_epochs = np.arange(1, epochs+1)
+    train_loss = vae.history.history['loss']
+    val_loss = np.ones_like(train_loss)
+    fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
+    ax.plot(n_epochs, train_loss, '-', lw=1.5)
+    ax.plot(n_epochs, val_loss, '-', lw=1.5)
+    ax.set_ylabel('loss')
+    ax.set_xlabel('epochs')
+    ax.legend(['train loss', 'val loss'])
+    plt.tight_layout()
 plt.show()
