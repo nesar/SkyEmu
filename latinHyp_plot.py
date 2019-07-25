@@ -88,16 +88,15 @@ def main():
         AllCombinations = np.delete(AllCombinations, del_rows, axis=0)
         # np.savetxt('lhc_'+str(nevals)+'_'+str(num_params)+'_'+set_name+'.txt', AllCombinations)
 
-
         # if verbose:
         # print(lhd)
         # lhd = norm(loc=0, scale=1).ppf(lhd)  # this applies to both factors here
 
         #
         if verbose:
-        f, a = plt.subplots(AllPara.shape[0], AllPara.shape[0], sharex=True, sharey=True)
-        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
-        plt.rcParams.update({'font.size': 4})
+            f, a = plt.subplots(AllPara.shape[0], AllPara.shape[0], sharex=True, sharey=True)
+            plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+            plt.rcParams.update({'font.size': 4})
 
         for i in range(AllPara.shape[0]):
             for j in range(i+1):
