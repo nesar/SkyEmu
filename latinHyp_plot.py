@@ -26,6 +26,9 @@ def latin_hc(filename, num_evals):
     para4 = np.linspace(-0.5, 0.5, num_evals)  # g2
     para5 = np.linspace(0.2, 0.4, num_evals)  # psf fwhm
 
+    AllPara = np.vstack([para1, para2, para3, para4, para5])
+    # AllLabels = [r'Flux', r'Radius', r'Shear g1', r'Shear g2', r'PSF fwhm']
+
     # latin hypercube
     lhd = pyDOE.lhs(AllPara.shape[0], samples=num_evals, criterion=None)  # c cm corr m
     idx = (lhd * num_evals).astype(int)
