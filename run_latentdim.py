@@ -5,6 +5,7 @@ import gp_model
 import cvae
 import testing
 import matplotlib.pyplot as plt
+import latinHyp_plot as lhc
 
 
 DataDir = '../Data/'
@@ -14,12 +15,16 @@ n_train = 1072
 n_test = 100
 n_params = 5
 
-# Generate training and testing sets
+# Generate latin hypercubes
 filename_train_par = 'lhc_'+str(n_train)+'_'+str(n_params)+'_training.txt'
+lhc.latin_hc(filename_train_par, n_train)
+filename_test_par = 'lhc_'+str(n_test)+'_'+str(n_params)+'_testing.txt'
+lhc.latin_hc(filename_test_par, n_test)
+
+# Generate training and testing sets
 filename_train_gal = 'plot_'+str(n_train)+'_'+str(n_params)+'_training'
 gengal.SaveGal(gengal.GenSetGal(DataDir+filename_train_par), filename_train_gal, 'galaxies')
 
-filename_test_par = 'lhc_'+str(n_test)+'_'+str(n_params)+'_testing.txt'
 filename_test_gal = 'plot_'+str(n_test)+'_'+str(n_params)+'_testing'
 gengal.SaveGal(gengal.GenSetGal(DataDir+filename_test_par), filename_test_gal, 'galaxies')
 
