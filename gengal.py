@@ -128,6 +128,6 @@ def PlotGal():
     plt.show()
 
 
-file_name = '../Data/lhc_64_5_testing.txt'
-SaveGal(GenSetGal(file_name), 'test_64_5_testing', 'galaxies')
+# file_name = '../Data/lhc_64_5_testing.txt'
+# SaveGal(GenSetGal(file_name), 'test_64_5_testing', 'galaxies')
 # PlotGal()

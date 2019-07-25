@@ -37,19 +37,19 @@ def pca_reduction(X, ncomp=20):
     basis = pca.components_
 
     # Plot cumsum(explained_variance) versus component
-    plt.semilogy(pca.explained_variance_ratio_*100, 's')
-    plt.ylabel('Explained Variance Ratio (%)', size=20)
-    plt.xticks(size=20)
-    plt.xlabel('Component', size=20)
-    plt.yticks(size=20)
-    plt.show()
+    # plt.semilogy(pca.explained_variance_ratio_*100, 's')
+    # plt.ylabel('Explained Variance Ratio (%)', size=20)
+    # plt.xticks(size=20)
+    # plt.xlabel('Component', size=20)
+    # plt.yticks(size=20)
+    # plt.show()
 
     print('Explained variance ratio : '+str(round(np.cumsum(pca.explained_variance_ratio_)[-1]*100, 2))+' %.')
 
     # pickle.dump(pca, '/../Data/GPmodel/pca_'+str(ncomp))
 
     # Some plots on PCA
-    plot_pca(basis, weights)
+    # plot_pca(basis, weights)
 
     return pca, weights
 
@@ -61,7 +61,7 @@ def plot_pca(basis, weights):
     - basis : 2-D basis of the subspace (orthogonal vectors), (ncomp * imsize)
     - weights : 2-D weights i.e. projection of the training set X onto the subspace spanned by the basis (nsamp * ncomp)
     """
-    file_name = '../Data/lhc_512_5_lownoise.txt'
+    file_name = '../Data/lhc_512_5.txt'
     params = np.loadtxt(file_name)
 
     ncomp, imsize = basis.shape
@@ -89,7 +89,7 @@ def plot_pca(basis, weights):
     plt.show()
 
 
-def gp_fit(weights):
+def gp_fit(weights, params):
     """
     Learns the GP related to the weigths matrix
     Input :
@@ -100,8 +100,8 @@ def gp_fit(weights):
     - tmean, tmult : Rescaling factors
     """
     # Load and rescale parameters
-    file_name = '../Data/lhc_512_5_lownoise.txt'
-    params = np.loadtxt(file_name)
+    # file_name = '../Data/lhc_512_5.txt'
+    # params = np.loadtxt(file_name)
     params, tmean, tmult = rescale(params)
 
     # Set the kernel
@@ -113,7 +113,7 @@ def gp_fit(weights):
     model.optimize()
 
     # Save model
-    model.save_model('../Data/GPmodel/gpfit_lownoise', compress=True, save_data=True)
+    model.save_model('../Data/GPmodel/gpfit_512_5', compress=True, save_data=True)
     return model, tmean, tmult
 
 
@@ -168,50 +168,126 @@ def rescale(params):
     return (params - theta_mean) * theta_mult**-1, theta_mean, theta_mult
 
 
-# Load training set and rescale flux
-path = '../Data/output_tests/training_512_5_lownoise.hdf5'
-f = h5py.File(path, 'r')
-X = np.array(f['galaxies'])
-xmax = np.max(X)
-X /= xmax
-X = np.reshape(X, (X.shape[0], X.shape[1]*X.shape[2]))
+def mse_r2(true, predicted):
+    """
+    Compute the mean square error (mse) and the r squared error (r2) of the predicted set of images.
+    Inputs :
+    - true : the original simulated set of images (n_imgs, nx, ny)
+    - predicted : reconstructed set of images (n_imgs, nx, ny)
+    Outputs :
+    - mse : Mean Square Error
+    - r2 : R-squared Error
+    """
+    # Reshaping set of images
+    # n_imgs, nx, ny = true.shape
+    # true = np.reshape(true, (n_imgs, nx*ny))
+    # predicted = np.reshape(predicted, (n_imgs, nx*ny))
+    nx = 33
+    ny = 33
 
-# New parameters to interpolate
-params_new = np.zeros((10, 5))
-for i in range(10):
-    params_new[i] = [np.random.uniform(1e4, 1e5), np.random.uniform(.1, 1.), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(.2, .4)]
+    # Compute MSE
+    se = np.sum((true - predicted)**2, axis=1)
+    mse = se*(nx*ny)**-1
 
-# Perform PCA
-pca, W = pca_reduction(X, ncomp=14)
-# GP learning
-gp, tmean, tmult = gp_fit(W)
+    # Compute R squared
+    mean = np.mean(true, axis=1)
+    r2 = 1 - se*np.sum((true - np.expand_dims(mean, axis=1))**2, axis=1)**-1
 
-# Rescale new parameters
-params_new_rescale = (params_new - tmean) * tmult**-1
+    return mse, r2
 
-# Emulate
-Xnew_em = emulator(pca, gp, params_new_rescale)
 
-# GalSim images simulation
-nx = 33  # pixels in the 1st spatial dimension
-ny = 33  # pixels in the 2nd spatial dimension
-# Initialize bunch array
-Xnew_gs = np.zeros((params_new.shape[0], nx, ny))
-for i in range(params_new.shape[0]):
-    Xnew_gs[i] = GenGalIm(params_new[i]).array
+def perform_pca_gp(latent_dim, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par):
+    # Load training set
+    f = h5py.File('../Data/output_tests/'+filename_train_gal+'.hdf5', 'r')
+    x_train = np.array(f['galaxies'])
+    xmin = np.min(x_train)
+    xmax = np.max(x_train) - xmin
+    x_train = (x_train - xmin) / xmax
+    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1]*x_train.shape[2]))
 
-# Plot Xnew vs GalSim
-for i in range(10):
-    plt.subplot(3, 10, i+1)
-    plt.imshow(np.reshape(Xnew_em[i]*xmax, (nx, ny)))
-    # plt.title('Emulated image using PCA + GP '+str(i))
-    # plt.colorbar()
-    plt.subplot(3, 10, 10+i+1)
-    plt.imshow(Xnew_gs[i])
-    # plt.title('Simulated image using GalSim '+str(i))
-    # plt.colorbar()
-    plt.subplot(3, 10, 20+i+1)
-    plt.imshow(abs(np.reshape(Xnew_em[i]*xmax, (nx, ny))-Xnew_gs[i]))
-    mse = np.mean((np.reshape(Xnew_em[i]*xmax, (nx, ny))-Xnew_gs[i])**2)
-    plt.title('MSE = '+str(mse), size=10)
-plt.show()
+    # Load training parameters
+    y_train = np.loadtxt(filename_train_par)
+
+    # PCA
+    pca, W = pca_reduction(x_train, ncomp=latent_dim)
+    # GP learning
+    gp, tmean, tmult = gp_fit(W, y_train)
+
+    # Load testing set
+    f = h5py.File('../Data/output_tests/'+filename_test_gal+'.hdf5', 'r')
+    x_test = np.array(f['galaxies'])
+    x_test = (x_test - xmin) / xmax
+    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1]*x_test.shape[2]))
+
+    # Load training parameters
+    y_test = np.loadtxt(filename_test_par)
+
+    # Predict x_test
+    x_test_decoded = emulator(pca, gp, y_test)
+
+    # Calculate mse
+    mse, _ = mse_r2(x_test, x_test_decoded)
+
+    return np.median(mse)
+
+
+def main():
+    # Load training set and rescale flux
+    path = '../Data/output_tests/training_512_5.hdf5'
+    f = h5py.File(path, 'r')
+    x_train = np.array(f['galaxies'])
+    xmin = np.min(x_train)
+    xmax = np.max(x_train) - xmin
+    x_train = (x_train - xmin) / xmax
+    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1]*x_train.shape[2]))
+
+    # New parameters to interpolate
+    # params_new = np.zeros((10, 5))
+    # for i in range(10):
+    # params_new[i] = [np.random.uniform(1e4, 1e5), np.random.uniform(.1, 1.), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(.2, .4)]
+    DataDir = '../Data/'
+    y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
+    y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
+
+    # Perform PCA
+    pca, W = pca_reduction(x_train, ncomp=14)
+    # GP learning
+    gp, tmean, tmult = gp_fit(W, y_train)
+
+    # Rescale y_test
+    y_test = (y_test - tmean) * tmult**-1
+
+    # Emulate
+    x_test_decoded = emulator(pca, gp, y_test)
+
+    # GalSim images simulation
+    # nx = 33  # pixels in the 1st spatial dimension
+    # ny = 33  # pixels in the 2nd spatial dimension
+    # Initialize bunch array
+    # x_test = np.zeros((params_new.shape[0], nx, ny))
+    # for i in range(params_new.shape[0]):
+    # x_test[i] = GenGalIm(params_new[i]).array
+    x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])
+    x_test = (x_test - xmin) / xmax
+
+    # Save training/testing sets
+    np.savetxt(DataDir+'pca_decoded_xtest_64_5.txt', x_test_decoded)
+
+    # Compute mse and r2
+    mse_test_pca, r2_test_pca = mse_r2(x_test, x_test_decoded)
+
+    # # Plot Xnew vs GalSim
+    # for i in range(10):
+    #     plt.subplot(3, 10, i+1)
+    #     plt.imshow(np.reshape(x_test_decoded[i], (nx, ny)))
+    #     # plt.title('Emulated image using PCA + GP '+str(i))
+    #     # plt.colorbar()
+    #     plt.subplot(3, 10, 10+i+1)
+    #     plt.imshow(x_test[i])
+    #     # plt.title('Simulated image using GalSim '+str(i))
+    #     # plt.colorbar()
+    #     plt.subplot(3, 10, 20+i+1)
+    #     plt.imshow(abs(np.reshape(x_test_decoded[i], (nx, ny))-x_test_decoded[i]))
+    #     mse = np.mean((np.reshape(x_test_decoded[i], (nx, ny))-x_test[i])**2)
+    #     plt.title('MSE = '+str(mse), size=10)
+    # plt.show()

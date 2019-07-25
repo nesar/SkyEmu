@@ -354,6 +354,8 @@ gpmodel = gp_fit(x_train_encoded[0], y_train)
 
 x_test_encoded = gp_predict(gpmodel, y_test)
 
+np.savetxt(DataDir + 'x_test_encoded_64_5.txt', x_test_encoded)
+
 x_test_decoded = decoder.predict(x_test_encoded)
 
 

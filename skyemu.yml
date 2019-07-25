@@ -6,6 +6,7 @@ channels:
 dependencies:
   - _anaconda_depends=2019.03=py37_0
   - _tflow_select=2.3.0=mkl
+  - absl-py=0.7.1=py37_0
   - alabaster=0.7.12=py37_0
   - anaconda=custom=py37_1
   - anaconda-client=1.7.2=py37_0
@@ -68,6 +69,7 @@ dependencies:
   - fribidi=1.0.5=h1de35cc_0
   - future=0.17.1=py37_1000
   - galsim=2.1.4=py37h04f5b5a_1000
+  - gast=0.2.2=py_0
   - get_terminal_size=1.0.0=h7520d66_0
   - gettext=0.19.8.1=h15daf44_3
   - gevent=1.4.0=py37h1de35cc_0
@@ -237,6 +239,7 @@ dependencies:
   - scipy=1.2.1=py37h1410ff5_0
   - seaborn=0.9.0=py37_0
   - send2trash=1.5.0=py37_0
+  - setuptools=41.0.1=py37_0
   - simplegeneric=0.8.1=py37_2
   - singledispatch=3.4.0.3=py37_0
   - sip=4.19.8=py37h0a44026_0
@@ -256,10 +259,7 @@ dependencies:
   - statsmodels=0.9.0=py37h1d22016_0
   - sympy=1.3=py37_0
   - tblib=1.3.2=py37_0
-  - tensorboard=1.13.1=py37haf313ee_0
-  - tensorflow=1.13.1=mkl_py37h70c3834_0
-  - tensorflow-base=1.13.1=mkl_py37h66b1bf0_0
-  - tensorflow-estimator=1.13.0=py_0
+  - termcolor=1.1.0=py_2
   - terminado=0.8.1=py37_1
   - testpath=0.4.2=py37_0
   - tk=8.6.8=ha441bb4_0
@@ -289,17 +289,45 @@ dependencies:
   - zlib=1.2.11=h1de35cc_3
   - zstd=1.3.7=h5bba6e5_0
   - pip:
-    - absl-py==0.7.1
     - astor==0.8.0
-    - gast==0.2.2
+    - bz2file==0.98
+    - cachetools==3.1.1
+    - dill==0.3.0
+    - dopamine-rl==2.0.5
+    - gin-config==0.2.0
+    - google-api-python-client==1.7.9
+    - google-auth==1.6.3
+    - google-auth-httplib2==0.0.3
     - google-pasta==0.1.7
+    - googleapis-common-protos==1.6.0
+    - gpy==1.9.8
     - grpcio==1.22.0
+    - gunicorn==19.9.0
+    - gym==0.13.1
+    - httplib2==0.13.0
     - keras==2.2.4
+    - kfac==0.1.4
+    - mesh-tensorflow==0.0.5
+    - oauth2client==4.1.3
+    - opencv-python==4.1.0.25
+    - paramz==0.9.5
+    - promise==2.2.1
     - protobuf==3.9.0
+    - pyasn1==0.4.5
+    - pyasn1-modules==0.2.5
     - pydoe2==1.2.0
-    - setuptools==41.0.1
+    - pyglet==1.3.2
+    - pypng==0.0.20
+    - rsa==4.0
     - tb-nightly==1.14.0a20190603
-    - termcolor==1.1.0
+    - tensor2tensor==1.13.4
+    - tensorboard==1.14.0
+    - tensorflow==1.14.0
+    - tensorflow-datasets==1.1.0
+    - tensorflow-estimator==1.14.0
+    - tensorflow-metadata==0.14.0
+    - tensorflow-probability==0.7.0
     - tf-estimator-nightly==1.14.0.dev2019060501
+    - uritemplate==3.0.0
 prefix: /anaconda3/envs/skyemu
 
