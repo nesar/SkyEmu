@@ -89,7 +89,7 @@ def plot_pca(basis, weights):
     plt.show()
 
 
-def gp_fit(weights, params):
+def gp_fit(weights, params, task):
     """
     Learns the GP related to the weigths matrix
     Input :
@@ -113,7 +113,9 @@ def gp_fit(weights, params):
     model.optimize()
 
     # Save model
-    model.save_model('../Data/GPmodel/gpfit_512_5', compress=True, save_data=True)
+    nparams = params.shape[1]
+    ntrain = weights.shape[1]
+    model.save_model('../Data/'+task+'GPmodel/gpfit_'+str(ntrain)+'_'+str(nparams), compress=True, save_data=True)
     return model, tmean, tmult
 
 
@@ -196,7 +198,7 @@ def mse_r2(true, predicted):
     return mse, r2
 
 
-def perform_pca_gp(latent_dim, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par):
+def perform_pca_gp(latent_dim, task, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par):
     DataDir = "../Data/"
     # Load training set
     f = h5py.File('../Data/output_tests/'+filename_train_gal+'.hdf5', 'r')
@@ -212,7 +214,7 @@ def perform_pca_gp(latent_dim, filename_train_gal, filename_train_par, filename_
     # PCA
     pca, W = pca_reduction(x_train, ncomp=latent_dim)
     # GP learning
-    gp, tmean, tmult = gp_fit(W, y_train)
+    gp, tmean, tmult = gp_fit(W, y_train, task)
 
     # Load testing set
     f = h5py.File('../Data/output_tests/'+filename_test_gal+'.hdf5', 'r')

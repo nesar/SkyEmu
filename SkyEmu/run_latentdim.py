@@ -9,6 +9,7 @@ import latinHyp_plot as lhc
 
 
 DataDir = '../Data/'
+task = 'latentspace_dim'
 
 # Training and testing sets parameters
 n_train = 1072
@@ -16,16 +17,16 @@ n_test = 100
 n_params = 5
 
 # Generate latin hypercubes
-filename_train_par = 'lhc_'+str(n_train)+'_'+str(n_params)+'_training.txt'
+filename_train_par = task+'lhc_'+str(n_train)+'_'+str(n_params)+'_training.txt'
 lhc.latin_hc(filename_train_par, n_train)
-filename_test_par = 'lhc_'+str(n_test)+'_'+str(n_params)+'_testing.txt'
+filename_test_par = task+'lhc_'+str(n_test)+'_'+str(n_params)+'_testing.txt'
 lhc.latin_hc(filename_test_par, n_test)
 
 # Generate training and testing sets
-filename_train_gal = 'plot_'+str(n_train)+'_'+str(n_params)+'_training'
+filename_train_gal = task+'plot_'+str(n_train)+'_'+str(n_params)+'_training'
 gengal.SaveGal(gengal.GenSetGal(DataDir+filename_train_par), filename_train_gal, 'galaxies')
 
-filename_test_gal = 'plot_'+str(n_test)+'_'+str(n_params)+'_testing'
+filename_test_gal = task+'plot_'+str(n_test)+'_'+str(n_params)+'_testing'
 gengal.SaveGal(gengal.GenSetGal(DataDir+filename_test_par), filename_test_gal, 'galaxies')
 
 # Latent space / truncated basis parameters
@@ -38,13 +39,13 @@ mse_vaegp = np.zeros(n_lat+1)
 
 for l in latent_dim:
     # Compute mse from pca+gp emulator
-    mse_pcagp[l-1] = pcagp.perform_pca_gp(l, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par)
+    mse_pcagp[l-1] = pcagp.perform_pca_gp(l, task, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par)
 
     # Train/Run cvae emulator and compute mse
-    filename_decoder, filename_training_encoded = cvae.train_cvae(l, filename_train_gal, filename_test_gal)
+    filename_decoder, filename_training_encoded = cvae.train_cvae(l, task, filename_train_gal, filename_test_gal)
     # filename_decoder = "cvae_decoder_model_galsim1072.h5"
     # filename_training_encoded = "cvae_encoded_xtrain_512_51072.txt"
-    filename_test_encoded = gp_model.gp(filename_train_par, filename_test_par, filename_training_encoded)
+    filename_test_encoded = gp_model.gp(task, filename_train_par, filename_test_par, filename_training_encoded)
     mse_vaegp[l-1] = testing.compute_vae_mse(filename_decoder, filename_test_encoded, filename_train_gal, filename_test_gal)
 
 # Save mse vectors

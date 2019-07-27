@@ -29,7 +29,7 @@ def rescale(params):
 # ----------------------- GP fitting and predicting functions ----------------
 
 
-def gp_fit(weights, y_train):
+def gp_fit(weights, y_train, task):
     """
     Learns the GP related to the weigths matrix
     Input :
@@ -49,7 +49,9 @@ def gp_fit(weights, y_train):
     model.optimize()
 
     # Save model
-    model.save_model(DataDir+'GPmodel/gpfit_cvae', compress=True, save_data=True)
+    nparams = y_train.shape[1]
+    ntrain = weights.shape[1]
+    model.save_model(DataDir+task+'GPmodel/gpfit_cvae_'+str(ntrain)+'_'+str(nparams), compress=True, save_data=True)
     return model
 
 
@@ -68,7 +70,7 @@ def gp_predict(model, params):
     return predic[0]
 
 
-def gp(filename_train_par, filename_test_par, filename_train_encoded):
+def gp(task, filename_train_par, filename_test_par, filename_train_encoded):
     # ------------------------ Parameters ---------------------------------------
 
     DataDir = netparam.DataDir
@@ -86,10 +88,10 @@ def gp(filename_train_par, filename_test_par, filename_train_encoded):
 
     # ---------------------- Training -------------------------------------------
 
-    gpmodel = gp_fit(x_train_encoded, y_train)
+    gpmodel = gp_fit(task, x_train_encoded, y_train)
     x_test_encoded = gp_predict(gpmodel, y_test)
 
-    filename_test_encoded = 'cvae_encoded_xtest_5_'+str(ntrain)+'.txt'
+    filename_test_encoded = task+ 'cvae_encoded_xtest_5_'+str(ntrain)+'.txt'
     np.savetxt(DataDir+filename_test_encoded, x_test_encoded)
 
     return filename_test_encoded
