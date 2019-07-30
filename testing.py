@@ -112,3 +112,5 @@ def main():
     # Compute MSE and R_squared
     mse_train, r2_train = mse_r2(x_train, x_train_decoded)
     mse_test, r2_test = mse_r2(x_test, x_test_decoded)
+
+    return mse_train, mse_test, r2_train, r2_test

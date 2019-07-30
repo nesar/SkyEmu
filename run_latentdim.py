@@ -9,6 +9,7 @@ import latinHyp_plot as lhc
 
 
 DataDir = '../Data/'
+task = 'latent_dim'
 
 # Training and testing sets parameters
 n_train = 1072
@@ -38,11 +39,11 @@ mse_vaegp = np.zeros(n_lat+1)
 
 for l in latent_dim:
     # Compute mse from pca+gp emulator
-    mse_pcagp[l-1] = pcagp.perform_pca_gp_latentdim(l, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par)
+    mse_pcagp[l-1] = pcagp.perform_pca_gp(l, task, filename_train_gal, filename_train_par, filename_test_gal, filename_test_par)
 
     # Train/Run cvae emulator and compute mse
-    filename_decoder, filename_training_encoded = cvae.train_cvae(l, filename_train_gal, filename_test_gal)
-    filename_test_encoded = gp_model.gp(filename_train_par, filename_test_par, filename_training_encoded)
+    filename_decoder, filename_training_encoded = cvae.train_cvae(l, task, filename_train_gal, filename_test_gal)
+    filename_test_encoded = gp_model.gp(task, filename_train_par, filename_test_par, filename_training_encoded)
     mse_vaegp[l-1] = testing.compute_vae_mse(filename_decoder, filename_test_encoded, filename_train_gal, filename_test_gal)
 
 # Save mse vectors

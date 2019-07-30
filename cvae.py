@@ -64,7 +64,7 @@ def sampling(args):
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
-def train_cvae(latent_dim, filename_train_gal, filename_test_gal):
+def train_cvae(latent_dim, task, filename_train_gal, filename_test_gal):
     # ------------------------ Parameters ---------------------------------------
     DataDir = netparam.DataDir
 
@@ -202,21 +202,21 @@ def train_cvae(latent_dim, filename_train_gal, filename_test_gal):
     vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
 
     # Save weights and models
-    vae.save(DataDir+'cvae_model_galsim'+str(ntrain)+'.h5')
-    vae.save_weights(DataDir+'cvae_weights_galsim'+str(ntrain)+'.h5')
-    encoder.save(DataDir+'cvae_encoder_model_galsim'+str(ntrain)+'.h5')
-    encoder.save_weights(DataDir+'cvae_encoder_weights_galsim'+str(ntrain)+'.h5')
+    vae.save(DataDir+task+'cvae_model_galsim'+str(ntrain)+'.h5')
+    vae.save_weights(DataDir+task+'cvae_weights_galsim'+str(ntrain)+'.h5')
+    encoder.save(DataDir+task+'cvae_encoder_model_galsim'+str(ntrain)+'.h5')
+    encoder.save_weights(DataDir+task+'cvae_encoder_weights_galsim'+str(ntrain)+'.h5')
 
-    filename_decoder = 'cvae_decoder_model_galsim'+str(ntrain)+'.h5'
+    filename_decoder = task+'cvae_decoder_model_galsim'+str(ntrain)+'.h5'
     decoder.save(DataDir+filename_decoder)
-    decoder.save_weights(DataDir+'cvae_decoder_weights_galsim'+str(ntrain)+'.h5')
+    decoder.save_weights(DataDir+task+'cvae_decoder_weights_galsim'+str(ntrain)+'.h5')
 
     # -------------- Training and testing sets encoding decoding -----------------
 
     x_train_encoded = encoder.predict(x_train)
     x_train_encoded = K.cast_to_floatx(x_train_encoded)
 
-    filename_train_encoded = 'cvae_encoded_xtrain_512_5'+str(ntrain)+'.txt'
+    filename_train_encoded = task+'cvae_encoded_xtrain_512_5'+str(ntrain)+'.txt'
     np.savetxt(DataDir+filename_train_encoded, x_train_encoded[2])
 
     return filename_decoder, filename_train_encoded

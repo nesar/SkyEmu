@@ -118,18 +118,18 @@ def plot_results(models,
 
 ################ edits ########################
 # MNIST dataset
-(x_train1, y_train1), (x_test1, y_test1) = mnist.load_data()
-image_size1 = x_train1.shape[1]
-x_train1 = np.reshape(x_train1, [-1, image_size1, image_size1, 1])
-x_test1 = np.reshape(x_test1, [-1, image_size1, image_size1, 1])
+# (x_train1, y_train1), (x_test1, y_test1) = mnist.load_data()
+# image_size1 = x_train1.shape[1]
+# x_train1 = np.reshape(x_train1, [-1, image_size1, image_size1, 1])
+# x_test1 = np.reshape(x_test1, [-1, image_size1, image_size1, 1])
 
 # Load training/testing set
 DataDir = '../Data/'
-x_train = np.array(h5py.File(DataDir + '/output_tests/training_512_5.hdf5', 'r')['galaxies'])[:, :32, :32]
-x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])[:, :32, :32]
+x_train = np.array(h5py.File(DataDir + 'output_cosmos/cosmos_train_512.hdf5', 'r')['galaxies'])
+x_test = np.array(h5py.File(DataDir + 'output_cosmos/cosmos_test_64.hdf5', 'r')['galaxies'])
 
-y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
-y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
+# y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
+# y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
 
 # x_train = Trainfiles[:, num_para+2:]
 # x_test = Testfiles[:, num_para+2:]
@@ -138,8 +138,8 @@ y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
 
 print(x_train.shape, 'train sequences')
 print(x_test.shape, 'test sequences')
-print(y_train.shape, 'train sequences')
-print(y_test.shape, 'test sequences')
+# print(y_train.shape, 'train sequences')
+# print(y_test.shape, 'test sequences')
 
 
 # Rescaling
@@ -148,8 +148,8 @@ xmax = np.max(x_train) - xmin
 x_train = (x_train - xmin) / xmax
 x_test = (x_test - xmin) / xmax
 
-y_train, ymean, ymult = rescale(y_train)
-y_test = (y_test - ymean) * ymult**-1
+# y_train, ymean, ymult = rescale(y_train)
+# y_test = (y_test - ymean) * ymult**-1
 
 # print(y_train)
 # print('----')
@@ -161,8 +161,8 @@ y_test = (y_test - ymean) * ymult**-1
 print(x_train.shape)
 print(x_test.shape)
 
-print(x_train1.shape)
-print(x_test1.shape)
+# print(x_train1.shape)
+# print(x_test1.shape)
 
 x_train = K.cast_to_floatx(x_train)
 x_test = K.cast_to_floatx(x_test)
@@ -261,7 +261,7 @@ vae = Model(inputs, outputs, name='vae')
 # parser.add_argument("-m", "--mse", help=help_, action='store_true')
 # args = parser.parse_args()
 models = (encoder, decoder)
-data = (x_test, y_test)
+# data = (x_test, y_test)
 
 # VAE loss = mse_loss or xent_loss + kl_loss
 # if args.mse:
@@ -288,7 +288,7 @@ plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
 # vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
-vae.save_weights('vae_cnn_galsim.h5')
+vae.save_weights('vae_cnn_galsim_cosmos.h5')
 
 # plot_results(models, data, batch_size=batch_size, model_name="vae_cnn")
 # Saving
@@ -300,14 +300,17 @@ x_train_encoded = K.cast_to_floatx(x_train_encoded)
 
 x_train_decoded = decoder.predict(x_train_encoded[0])
 
-# x_test_encoded = encoder.predict(x_test)
+x_test_encoded = encoder.predict(x_test)
 
-# x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
+x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
 
-# x_test_decoded = decoder.predict(x_test_encoded)
+x_test_decoded = decoder.predict(x_test_encoded)
 
-np.savetxt(DataDir+'cvae_encoded_xtrainP'+'.txt', x_train_encoded[0])
-# np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
+np.savetxt(DataDir+'cvae_encoded_xtrain_cosmos.txt', x_train_encoded[0])
+np.savetxt(DataDir+'cvae_encoded_xtest_cosmos.txt', x_test_encoded[0])
+
+np.savetxt(DataDir+'cvae_decoded_xtrain_cosmos.txt', np.reshape(x_train_decoded, (x_train_decoded.shape[0], x_train_decoded.shape[1]*x_train_decoded.shape[2])))
+np.savetxt(DataDir+'cvae_decoded_xtest_cosmos.txt', np.reshape(x_test_decoded, (x_test_decoded.shape[0], x_test_decoded.shape[1]*x_test_decoded.shape[2])))
 
 # ---------------------- GP fitting -------------------------------
 
@@ -350,13 +353,13 @@ def gp_predict(model, params):
     return predic[0]
 
 
-gpmodel = gp_fit(x_train_encoded[0], y_train)
+# gpmodel = gp_fit(x_train_encoded[0], y_train)
 
-x_test_encoded = gp_predict(gpmodel, y_test)
+# x_test_encoded = gp_predict(gpmodel, y_test)
 
-np.savetxt(DataDir + 'x_test_encoded_64_5.txt', x_test_encoded)
+# np.savetxt(DataDir + 'x_test_encoded_64_5.txt', x_test_encoded)
 
-x_test_decoded = decoder.predict(x_test_encoded)
+# x_test_decoded = decoder.predict(x_test_encoded)
 
 
 # -------------------- Plotting routines --------------------------
@@ -389,7 +392,7 @@ for i in range(10):
 
 plt.show()
 
-PlotScatter = True
+PlotScatter = False
 if PlotScatter:
 
     w1 = 1
