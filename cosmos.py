@@ -18,7 +18,7 @@ def plot_gal(dataset):
 nx = 64
 ny = 64
 pixel_scale = 0.04
-n_train = 1024
+n_train = 1025
 n_test = 64
 
 if not os.path.isdir('../Data/output_cosmos'):
