@@ -1,5 +1,0 @@
-[0] setting up environment
-srun: error: Unable to confirm allocation for job 6218: Unable to contact slurm controller (connect failure)
-srun: Check SLURM_JOB_ID environment variable for expired or invalid job.
-[9] End job
-slurmstepd: error: Unable to send job complete message: Unable to contact slurm controller (connect failure)
