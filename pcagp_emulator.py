@@ -37,13 +37,13 @@ def pca_reduction(X, ncomp=20):
     weights = pca.fit_transform(X)
     basis = pca.components_
 
-    # Plot cumsum(explained_variance) versus component
-    plt.semilogy(pca.explained_variance_ratio_*100, 's')
-    plt.ylabel('Explained Variance Ratio (%)', size=20)
-    plt.xticks(size=20)
-    plt.xlabel('Component', size=20)
-    plt.yticks(size=20)
-    plt.show()
+    # # Plot cumsum(explained_variance) versus component
+    # plt.semilogy(pca.explained_variance_ratio_*100, 's')
+    # plt.ylabel('Explained Variance Ratio (%)', size=20)
+    # plt.xticks(size=20)
+    # plt.xlabel('Component', size=20)
+    # plt.yticks(size=20)
+    # plt.show()
 
     print('Explained variance ratio : '+str(round(np.cumsum(pca.explained_variance_ratio_)[-1]*100, 2))+' %.')
 
@@ -100,13 +100,14 @@ def gp_fit(weights, params, task):
     - model : GP model
     - tmean, tmult : Rescaling factors
     """
+    print('GP training ...')
     # Load and rescale parameters
     # file_name = '../Data/lhc_512_5.txt'
     # params = np.loadtxt(file_name)
     params, tmean, tmult = rescale(params)
 
     # Set the kernel
-    # kernel = GPy.kern.Matern52(input_dim=params.shape[1], variance=.1, lengthscale=.1)
+    # kernel = GPy.kern.Matern52(input_dim=params.shape[1], variance=.01, lengthscale=.1)
     kernel = GPy.kern.Matern52(input_dim=params.shape[1])
 
     # GP Regression
@@ -237,7 +238,7 @@ def perform_pca_gp(latent_dim, task, filename_train_gal, filename_train_par, fil
     return np.median(mse)
 
 
-def main():
+def main(n):
     n_train = 2048
     n_test = 128
     nx = 64
@@ -255,9 +256,11 @@ def main():
 
     # Load testing set parametric images
     x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
+    x_train_parametric = np.reshape(x_train_parametric, (n_train, nx*ny))
 
     # Load training set parameters and rescale
     y_train = np.array(f['parameters'])
+    f.close()
 
     # Load testing set and rescale fluxes
     path = '../Data/output_cosmos/cosmos_real_test_'+str(n_test)+'.hdf5'
@@ -271,22 +274,26 @@ def main():
 
     # Load testing set parametric images
     x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
+    x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
+    f.close()
 
     # ----------------------- PERFORM PCA+GP TRAINING ---------------------------
     # Perform PCA
-    pca, W = pca_reduction(x_train, ncomp=20)
+    pca, W = pca_reduction(x_train, ncomp=25)
     # GP learning
     gp, tmean, tmult = gp_fit(W, y_train, 'cosmos')
 
     # Rescale y_test
     y_test = (y_test - tmean) * tmult**-1
+    y_train = (y_train - tmean) * tmult**-1
 
     # ----------------------- EMULATION -----------------------------------------
     # Emulate
     x_test_decoded = emulator(pca, gp, y_test)
+    x_train_decoded = emulator(pca, gp, y_train)
 
     # Generate decoded training set
-    x_train_decoded = pca.inverse_transform(W)
+    x_train_decoded_pca = pca.inverse_transform(W)
 
     # GalSim images simulation
     # Initialize bunch array
@@ -305,26 +312,27 @@ def main():
     # mse_test_pca, r2_test_pca = mse_r2(x_test, x_test_decoded)
 
     # # Plot Xnew vs GalSim
-    n = 0
 
     for i in range(10):
-        plt.subplot(3, 10, i+1)
+        plt.subplot(4, 10, i+1)
         plt.imshow(np.reshape(x_train_parametric[i+n], (nx, ny)))
 
-        plt.subplot(3, 10, 10+i+1)
+        plt.subplot(4, 10, 10+i+1)
         plt.imshow(np.reshape(x_train[i+n], (nx, ny)))
         # plt.title('Emulated image using PCA + GP '+str(i))
         # plt.colorbar()
-        plt.subplot(3, 10, 20+i+1)
-        plt.imshow(np.reshape(x_train_decoded[i+n], (nx, ny)))
+        plt.subplot(4, 10, 20+i+1)
+        plt.imshow(np.reshape(x_train_decoded_pca[i+n], (nx, ny)))
         # plt.title('Simulated image using GalSim '+str(i))
         # plt.colorbar()
+        plt.subplot(4, 10, 30+i+1)
+        plt.imshow(np.reshape(x_train_decoded[i+n], (nx, ny)))
         # plt.subplot(4, 10, 30+i+1)
         # plt.imshow(abs(np.reshape(x_train_real_decoded[i+n], (nx, ny))))
         # mse = np.mean((np.reshape(x_test_decoded[i], (nx, ny))-x_test[i])**2)
         # plt.title('MSE = '+str(mse), size=10)
-        # plt.subplot(5, 10, 40+i+1)
-        # plt.imshow(abs(np.reshape(x_train_par[i+n], (nx, ny))-np.reshape(x_train[i+n], (nx, ny))))
+        # plt.subplot(4, 10, 30+i+1)
+        # plt.imshow(abs(np.reshape(x_test[i+n], (nx, ny))-np.reshape(x_test_decoded[i+n], (nx, ny))))
 
     plt.show()
 

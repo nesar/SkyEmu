@@ -102,8 +102,34 @@ for ind in range(n_test):
     final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
 
     testing_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
-    training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
-    testing_params[ind] = load_params(ind, catalog_param, n_params)
+    testing_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    testing_params[ind] = load_params(i, catalog_param, n_params)
+
+mean = np.mean(training_params, axis=0)
+mult = np.max(training_params - mean, axis=0)
+y_train = (training_params - mean) * mult**-1
+y_test = (testing_params - mean) * mult**-1
+
+f, a = plt.subplots(4, 4, sharex=True, sharey=True)
+plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+plt.rcParams.update({'font.size': 4})
+
+for i in range(4):
+    for j in range(i+1):
+        if(i != j):
+            a[i, j].scatter(y_train[:, i], y_train[:, j], s=1, alpha=0.7)
+            a[i, j].scatter(y_test[:, i], y_test[:, j], s=1, alpha=0.7)
+            a[i, j].grid(True)
+            a[j, i].set_visible(False)
+            # plt.xticks([])
+            # plt.yticks([])
+        else:
+            # a[i, i].text(0.4, 0.4, params[i], size='x-large')
+            hist, bin_edges = np.histogram(y_train[:, i], density=True, bins=12)
+            a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
+            # plt.xticks([])
+            # plt.yticks([])
+plt.show()
 
 # Saving all datasets and params
 print('Saving data sets ...')
@@ -115,6 +141,6 @@ f.close()
 
 f = h5py.File(file_name_test, 'w')
 f.create_dataset('real galaxies', data=testing_set)
-f.create_dataset('parametric galaxies', data=training_parametric)
+f.create_dataset('parametric galaxies', data=testing_parametric)
 f.create_dataset('parameters', data=testing_params)
 f.close()
