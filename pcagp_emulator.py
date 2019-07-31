@@ -237,22 +237,35 @@ def perform_pca_gp(latent_dim, task, filename_train_gal, filename_train_par, fil
 
 
 def main():
-    # Load training set and rescale flux
-    path = '../Data/output_cosmos/cosmos_real_train_512.hdf5'
+    n_train = 2048
+    n_test = 128
+    im_size = 64
+
+    # Load training set images and rescale fluxes
+    path = '../Data/output_cosmos/cosmos_real_train_'+str(n_train)+'.hdf5'
     f = h5py.File(path, 'r')
     x_train = np.array(f['galaxies'])
     xmin = np.min(x_train)
     xmax = np.max(x_train) - xmin
     x_train = (x_train - xmin) / xmax
-    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1]*x_train.shape[2]))
+    x_train = np.reshape(x_train, (n_train, im_size**2))
 
-    path = '../Data/output_cosmos/cosmos_train_512.hdf5'
+    # Load training set parameters and rescale
+    path = os.path.join('../Data/output_cosmos', 'cosmos_real_train_'+str(n_train)+'_params.hdf5')
     f = h5py.File(path, 'r')
-    x_train_par = np.array(f['galaxies'])
-    xmin = np.min(x_train_par)
-    xmax = np.max(x_train_par) - xmin
-    x_train_par = (x_train_par - xmin) / xmax
-    x_train_par = np.reshape(x_train_par, (x_train_par.shape[0], x_train_par.shape[1]*x_train_par.shape[2]))
+    x_train_params = np.array(f['galaxies'])
+
+    # Load testing set and rescale fluxes
+    path = '../Data/output_cosmos/cosmos_real_test_'+str(n_test)+'.hdf5'
+    f = h5py.File(path, 'r')
+    x_test = np.array(f['galaxies'])
+    x_test = (x_est - xmin) / xmax
+    x_test = np.reshape(x_test, (n_test, im_size**2))
+
+    # Load testing set parameters and rescale
+    path = os.path.join('../Data/output_cosmos', 'cosmos_real_test_'+str(n_test)+'_params.hdf5')
+    f = h5py.File(path, 'r')
+    x_train_params = np.array(f['galaxies'])
 
     # New parameters to interpolate
     # params_new = np.zeros((10, 5))
