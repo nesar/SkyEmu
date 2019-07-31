@@ -6,11 +6,13 @@ import h5py
 
 
 # Plotting routine
-def plot_gal(dataset):
-    for i in range(20):
+def plot_gal(dataset_real, dataset_param):
+    for i in range(10):
         plt.subplot(2, 10, i+1)
-        plt.imshow(dataset[i])
-        plt.colorbar(shrink=0.5)
+        plt.imshow(dataset_real[i])
+        # plt.colorbar(shrink=0.5)
+        plt.subplot(2, 10, 10+i+1)
+        plt.imshow(dataset_param[i])
     plt.show()
 
 
@@ -50,8 +52,6 @@ if not os.path.isdir('../Data/output_cosmos'):
 # Set filenames
 file_name_train = os.path.join('../Data/output_cosmos', 'cosmos_real_train_'+str(n_train)+'.hdf5')
 file_name_test = os.path.join('../Data/output_cosmos', 'cosmos_real_test_'+str(n_test)+'.hdf5')
-file_name_train_params = os.path.join('../Data/output_cosmos', 'cosmos_real_train_'+str(n_train)+'_params.hdf5')
-file_name_test_params = os.path.join('../Data/output_cosmos', 'cosmos_real_test_'+str(n_test)+'_params.hdf5')
 
 # Set parameters labels
 params_labels = np.array(['flux_sersic', 'hlr_sersic', 'q_sersic', 'phi_sersic', 'flux_bulge', 'hlr_bulge', 'q_bulge', 'phi_bulge', 'flux_disk', 'hlr_disk', 'q_disk', 'phi_disk'])
@@ -61,9 +61,14 @@ n_params = params_labels.shape[0]
 catalog_real = galsim.COSMOSCatalog()
 catalog_param = galsim.COSMOSCatalog(use_real=False)
 
-# Initialize sets
+# --------- Initialize sets
+# Training and testing real images
 training_set = np.zeros((n_train, nx, ny))
 testing_set = np.zeros((n_test, nx, ny))
+# Training and testing parametric images
+training_parametric = np.zeros((n_train, nx, ny))
+testing_parametric = np.zeros((n_test, nx, ny))
+# Training and testing parameters
 training_params = np.zeros((n_train, n_params))
 testing_params = np.zeros((n_test, n_params))
 
@@ -78,9 +83,11 @@ for ind in range(n_train):
     gal_param = catalog_param.makeGalaxy(ind, noise_pad_size=ny * pixel_scale)
     psf = gal_real.original_psf
     # final = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
-    final = galsim.Convolve([gal_real, psf], gsparams=big_fft_params)
+    final_real = galsim.Convolve([gal_real, psf], gsparams=big_fft_params)
+    final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
 
-    training_set[ind] = final.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    training_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     training_params[ind] = load_params(ind, catalog_param, n_params)
 
 # Generating testing set and params
@@ -91,25 +98,23 @@ for ind in range(n_test):
     gal_param = catalog_param.makeGalaxy(i, noise_pad_size=ny * pixel_scale)
     psf = gal_real.original_psf
     # final = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
-    final = galsim.Convolve([gal_real, psf], gsparams=big_fft_params)
+    final_real = galsim.Convolve([gal_real, psf], gsparams=big_fft_params)
+    final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
 
-    testing_set[ind] = final.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    testing_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     testing_params[ind] = load_params(ind, catalog_param, n_params)
 
 # Saving all datasets and params
 print('Saving data sets ...')
 f = h5py.File(file_name_train, 'w')
-f.create_dataset('galaxies', data=training_set)
+f.create_dataset('real galaxies', data=training_set)
+f.create_dataset('parametric galaxies', data=training_parametric)
+f.create_dataset('parameters', data=training_params)
 f.close()
 
 f = h5py.File(file_name_test, 'w')
-f.create_dataset('galaxies', data=testing_set)
-f.close()
-
-f = h5py.File(file_name_train_params, 'w')
-f.create_dataset('galaxies', data=training_params)
-f.close()
-
-f = h5py.File(file_name_test_params, 'w')
-f.create_dataset('galaxies', data=testing_params)
+f.create_dataset('real galaxies', data=testing_set)
+f.create_dataset('parametric galaxies', data=training_parametric)
+f.create_dataset('parameters', data=testing_params)
 f.close()

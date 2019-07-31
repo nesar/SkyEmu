@@ -15,6 +15,7 @@ import h5py
 import matplotlib.pyplot as plt
 import GPy
 from gengal import GenGalIm
+import os
 
 
 def pca_reduction(X, ncomp=20):
@@ -49,7 +50,7 @@ def pca_reduction(X, ncomp=20):
     # pickle.dump(pca, '/../Data/GPmodel/pca_'+str(ncomp))
 
     # Some plots on PCA
-    plot_pca(basis, weights)
+    # plot_pca(basis, weights)
 
     return pca, weights
 
@@ -239,59 +240,55 @@ def perform_pca_gp(latent_dim, task, filename_train_gal, filename_train_par, fil
 def main():
     n_train = 2048
     n_test = 128
-    im_size = 64
+    nx = 64
+    ny = 64
 
+    # ------------------------------ LOAD DATA ----------------------------------
     # Load training set images and rescale fluxes
     path = '../Data/output_cosmos/cosmos_real_train_'+str(n_train)+'.hdf5'
     f = h5py.File(path, 'r')
-    x_train = np.array(f['galaxies'])
+    x_train = np.array(f['real galaxies'])
     xmin = np.min(x_train)
     xmax = np.max(x_train) - xmin
     x_train = (x_train - xmin) / xmax
-    x_train = np.reshape(x_train, (n_train, im_size**2))
+    x_train = np.reshape(x_train, (n_train, nx*ny))
+
+    # Load testing set parametric images
+    x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
 
     # Load training set parameters and rescale
-    path = os.path.join('../Data/output_cosmos', 'cosmos_real_train_'+str(n_train)+'_params.hdf5')
-    f = h5py.File(path, 'r')
-    x_train_params = np.array(f['galaxies'])
+    y_train = np.array(f['parameters'])
 
     # Load testing set and rescale fluxes
     path = '../Data/output_cosmos/cosmos_real_test_'+str(n_test)+'.hdf5'
     f = h5py.File(path, 'r')
-    x_test = np.array(f['galaxies'])
-    x_test = (x_est - xmin) / xmax
-    x_test = np.reshape(x_test, (n_test, im_size**2))
+    x_test = np.array(f['real galaxies'])
+    x_test = (x_test - xmin) / xmax
+    x_test = np.reshape(x_test, (n_test, nx*ny))
 
     # Load testing set parameters and rescale
-    path = os.path.join('../Data/output_cosmos', 'cosmos_real_test_'+str(n_test)+'_params.hdf5')
-    f = h5py.File(path, 'r')
-    x_train_params = np.array(f['galaxies'])
+    y_test = np.array(f['parameters'])
 
-    # New parameters to interpolate
-    # params_new = np.zeros((10, 5))
-    # for i in range(10):
-    # params_new[i] = [np.random.uniform(1e4, 1e5), np.random.uniform(.1, 1.), np.random.uniform(-0.5, 0.5), np.random.uniform(-0.5, 0.5), np.random.uniform(.2, .4)]
-    # DataDir = '../Data/'
-    # y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
-    # y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
+    # Load testing set parametric images
+    x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
 
+    # ----------------------- PERFORM PCA+GP TRAINING ---------------------------
     # Perform PCA
-    pca_real, W_real = pca_reduction(x_train, ncomp=20)
-    pca_par, W_par = pca_reduction(x_train_par, ncomp=20)
+    pca, W = pca_reduction(x_train, ncomp=20)
     # GP learning
-    # gp, tmean, tmult = gp_fit(W, y_train)
+    gp, tmean, tmult = gp_fit(W, y_train, 'cosmos')
 
     # Rescale y_test
-    # y_test = (y_test - tmean) * tmult**-1
+    y_test = (y_test - tmean) * tmult**-1
 
+    # ----------------------- EMULATION -----------------------------------------
     # Emulate
-    # x_test_decoded = emulator(pca, gp, y_test)
-    x_train_real_decoded = pca_real.inverse_transform(W_real)
-    x_train_par_decoded = pca_par.inverse_transform(W_par)
+    x_test_decoded = emulator(pca, gp, y_test)
+
+    # Generate decoded training set
+    x_train_decoded = pca.inverse_transform(W)
 
     # GalSim images simulation
-    nx = 64  # pixels in the 1st spatial dimension
-    ny = 64  # pixels in the 2nd spatial dimension
     # Initialize bunch array
     # x_test = np.zeros((params_new.shape[0], nx, ny))
     # for i in range(params_new.shape[0]):
@@ -308,22 +305,22 @@ def main():
     # mse_test_pca, r2_test_pca = mse_r2(x_test, x_test_decoded)
 
     # # Plot Xnew vs GalSim
-    n = 167
+    n = 0
 
     for i in range(10):
-        plt.subplot(4, 10, i+1)
-        plt.imshow(np.reshape(x_train_par[i+n], (nx, ny)))
+        plt.subplot(3, 10, i+1)
+        plt.imshow(np.reshape(x_train_parametric[i+n], (nx, ny)))
 
-        plt.subplot(4, 10, 10+i+1)
+        plt.subplot(3, 10, 10+i+1)
         plt.imshow(np.reshape(x_train[i+n], (nx, ny)))
         # plt.title('Emulated image using PCA + GP '+str(i))
         # plt.colorbar()
-        plt.subplot(4, 10, 20+i+1)
-        plt.imshow(np.reshape(x_train_par_decoded[i+n], (nx, ny)))
+        plt.subplot(3, 10, 20+i+1)
+        plt.imshow(np.reshape(x_train_decoded[i+n], (nx, ny)))
         # plt.title('Simulated image using GalSim '+str(i))
         # plt.colorbar()
-        plt.subplot(4, 10, 30+i+1)
-        plt.imshow(abs(np.reshape(x_train_real_decoded[i+n], (nx, ny))))
+        # plt.subplot(4, 10, 30+i+1)
+        # plt.imshow(abs(np.reshape(x_train_real_decoded[i+n], (nx, ny))))
         # mse = np.mean((np.reshape(x_test_decoded[i], (nx, ny))-x_test[i])**2)
         # plt.title('MSE = '+str(mse), size=10)
         # plt.subplot(5, 10, 40+i+1)
