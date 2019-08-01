@@ -3,16 +3,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import h5py
+import cmath
 
 
 # Plotting routine
-def plot_gal(dataset_real, dataset_param):
+def plot_gal(dataset_real, dataset_param, psf):
     for i in range(10):
-        plt.subplot(2, 10, i+1)
+        plt.subplot(3, 10, i+1)
         plt.imshow(dataset_real[i])
         # plt.colorbar(shrink=0.5)
-        plt.subplot(2, 10, 10+i+1)
+        plt.subplot(3, 10, 10+i+1)
         plt.imshow(dataset_param[i])
+
+        plt.subplot(3, 10, 20+i+1)
+        plt.imshow(np.real(np.fft.ifft2(psf[i])))
     plt.show()
 
 
@@ -37,6 +41,19 @@ def load_params(index, catalog, n_params):
         params[2] = par_dic['sersicfit'][3]
         params[3] = par_dic['sersicfit'][7]
     return params
+
+
+def compute_translation(shape):
+    K, L = shape
+    trans = np.zeros(shape, dtype=np.complex)
+    for k in range(K):
+        for l in range(L):
+            trans[k, l] = cmath.exp(-2*np.pi*k*(1/2)*1.j)*cmath.exp(-2*np.pi*l*(1/2)*1.j)
+    return trans
+
+
+def fft_shift_psf(psf, translation):
+    return np.fft.fft2(psf)*translation
 
 
 # Set dimensions
@@ -71,6 +88,10 @@ testing_parametric = np.zeros((n_test, nx, ny))
 # Training and testing parameters
 training_params = np.zeros((n_train, n_params))
 testing_params = np.zeros((n_test, n_params))
+# Training and testing psfs
+training_psf = np.zeros((n_train, nx, ny), dtype=np.complex)
+testing_psf = np.zeros((n_test, nx, ny), dtype=np.complex)
+translation = compute_translation((nx, ny))
 
 # Modify GSParams
 big_fft_params = galsim.GSParams(maximum_fft_size=12300)
@@ -89,6 +110,7 @@ for ind in range(n_train):
     training_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     training_params[ind] = load_params(ind, catalog_param, n_params)
+    training_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
 
 # Generating testing set and params
 print('Loading testing set ...')
@@ -104,6 +126,7 @@ for ind in range(n_test):
     testing_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     testing_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     testing_params[ind] = load_params(i, catalog_param, n_params)
+    testing_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
 
 mean = np.mean(training_params, axis=0)
 mult = np.max(training_params - mean, axis=0)
@@ -114,22 +137,24 @@ f, a = plt.subplots(4, 4, sharex=True, sharey=True)
 plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
 plt.rcParams.update({'font.size': 4})
 
-for i in range(4):
-    for j in range(i+1):
-        if(i != j):
-            a[i, j].scatter(y_train[:, i], y_train[:, j], s=1, alpha=0.7)
-            a[i, j].scatter(y_test[:, i], y_test[:, j], s=1, alpha=0.7)
-            a[i, j].grid(True)
-            a[j, i].set_visible(False)
-            # plt.xticks([])
-            # plt.yticks([])
-        else:
-            # a[i, i].text(0.4, 0.4, params[i], size='x-large')
-            hist, bin_edges = np.histogram(y_train[:, i], density=True, bins=12)
-            a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
-            # plt.xticks([])
-            # plt.yticks([])
-plt.show()
+plot = False
+if plot:
+    for i in range(4):
+        for j in range(i+1):
+            if(i != j):
+                a[i, j].scatter(y_train[:, i], y_train[:, j], s=1, alpha=0.7)
+                a[i, j].scatter(y_test[:, i], y_test[:, j], s=1, alpha=0.7)
+                a[i, j].grid(True)
+                a[j, i].set_visible(False)
+                # plt.xticks([])
+                # plt.yticks([])
+            else:
+                # a[i, i].text(0.4, 0.4, params[i], size='x-large')
+                hist, bin_edges = np.histogram(y_train[:, i], density=True, bins=12)
+                a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
+                # plt.xticks([])
+                # plt.yticks([])
+    plt.show()
 
 # Saving all datasets and params
 print('Saving data sets ...')
@@ -137,10 +162,12 @@ f = h5py.File(file_name_train, 'w')
 f.create_dataset('real galaxies', data=training_set)
 f.create_dataset('parametric galaxies', data=training_parametric)
 f.create_dataset('parameters', data=training_params)
+f.create_dataset('psf', data=training_psf)
 f.close()
 
 f = h5py.File(file_name_test, 'w')
 f.create_dataset('real galaxies', data=testing_set)
 f.create_dataset('parametric galaxies', data=testing_parametric)
 f.create_dataset('parameters', data=testing_params)
+f.create_dataset('psf', data=testing_psf)
 f.close()

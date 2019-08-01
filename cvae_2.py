@@ -244,6 +244,8 @@ outputs = Conv2DTranspose(filters=1,
                           padding='same',
                           name='decoder_output')(x)
 
+
+
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
