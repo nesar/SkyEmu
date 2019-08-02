@@ -8,8 +8,9 @@ from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
 # from keras.datasets import mnist
 from keras.losses import mse, binary_crossentropy
-from keras.utils import plot_model
+# from keras.utils import plot_model
 from keras import backend as K
+import tensorflow as tf
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,7 +21,6 @@ import GPy
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-
 
 # reparameterization trick
 # instead of sampling from Q(z|X), sample eps = N(0,I)
@@ -42,9 +42,13 @@ def sampling(args):
 
 
 # Convolution with PSF function
-def psf_convolve(img, psf):
-    output = np.fft.ifft2(np.fft.fft2(img[0], norm='ortho')*psf, norm='ortho')
-    return np.expand_dims(output)
+def psf_convolve(args):
+    img, psf = args
+    imgfft = tf.spectral.rfft2d(img[:, :, :, 0])
+    psffft = tf.spectral.rfft2d(psf[:, :, :, 0])
+    convfft = tf.spectral.irfft2d(imgfft * psffft)
+    h = tf.expand_dims(convfft, axis=-1)
+    return h
 
 
 # Add some poisson noise function
@@ -92,7 +96,7 @@ epsilon_std = 1.e-4
 input_shape = (nx, ny, 1)
 batch = 32
 kernel_size = 4
-n_conv = 0
+n_conv = 2
 filters = 16
 interm_dim = 128
 latent_dim = 20
@@ -125,7 +129,8 @@ ymax = np.mean(y_train - ymean, axis=0)
 y_train = (y_train - ymean) * ymax**-1
 
 # Load training set psfs
-psf_train = np.array(f['psf'], dtype=np.complex)
+psf_train = np.fft.fftshift(np.array(f['psf']))
+psf_ = psf_train[0]
 f.close()
 
 # Load testing set and rescale fluxes
@@ -144,22 +149,32 @@ x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
 x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
 
 # Load training set psfs
-psf_test = np.array(f['psf'], dtype=np.complex)
+psf_test = np.fft.fftshift(np.array(f['psf']))
 f.close()
 
 # Cast to float, reshaping, ...
 x_train = K.cast_to_floatx(x_train)
 x_test = K.cast_to_floatx(x_test)
+psf_train = K.cast_to_floatx(psf_train)
+psf_test = K.cast_to_floatx(psf_test)
+
 x_train = np.reshape(x_train, [-1, nx, ny, 1])
 x_test = np.reshape(x_test, [-1, nx, ny, 1])
+psf_train = np.reshape(psf_train, [-1, nx, ny, 1])
+psf_test = np.reshape(psf_test, [-1, nx, ny, 1])
+
 x_train = x_train.astype('float32')  # / 255
 x_test = x_test.astype('float32')  # / 255
+psf_train = psf_train.astype('float32')
+psf_test = psf_test.astype('float32')
+
 
 # ------------------- VAE model = encoder + decoder -------------------------
 
 # ******** ENCODER ********
-inputs = Input(shape=input_shape, name='encoder_input')
-x = inputs
+inputs_img = Input(shape=input_shape, name='encoder_input')
+
+x = inputs_img
 for i in range(n_conv):
     filters *= 2
     x = Conv2D(filters=filters,
@@ -179,15 +194,17 @@ z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
 # use reparameterization trick to push the sampling out as input
 # note that "output_shape" isn't necessary with the TensorFlow backend
-z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
+z = Lambda(sampling, output_shape=(latent_dim,), name='z_sampling_')([z_mean, z_log_var])
 
 # instantiate encoder model
-encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
+encoder = Model(inputs_img, z, name='encoder')
 encoder.summary()
 # plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 
 # ******** DECODER ********
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
+psf_inputs = Input(shape=input_shape, name='psf_input')
+
 x = Dense(interm_dim, activation='relu')(latent_inputs)
 x = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x)
 x = Reshape((shape[1], shape[2], shape[3]))(x)
@@ -200,28 +217,35 @@ for i in range(n_conv):
                         padding='same')(x)
     filters //= 2
 
-x_dec = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x)
+x = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x)
 
-x = Lambda(psf_convolve, output_shape=(1, nx, ny))(x_dec, psf)
+outputs = Lambda(psf_convolve, output_shape=(input_shape,))([x, psf_inputs])
 
-outputs = GaussianNoise(stddev)(x)
-
-# instantiate decoder model
-decoder_deconv = Model(latent_inputs, x_dec, name='decoder_deconvolved')
-decoder = Model(latent_inputs, outputs, name='decoder')
+# # instantiate decoder model
+decoder = Model([latent_inputs, psf_inputs], outputs, name='decoder')
 decoder.summary()
-# plot_model(decoder, to_file='vae_cnn_decoder.png', show_shapes=True)
+# # plot_model(decoder, to_file='vae_cnn_decoder.png', show_shapes=True)
+
+# # ******** PSF Convolution layer ********
+# inputs_img_conv = Input(shape=input_shape, name='img_input')
+# inputs_psf_conv = Input(shape=input_shape, name='psf_input')
+
+# outputs_conv =
+
+# instantiate psf convolution model
+# psfconvolve = Model([inputs_img_conv, inputs_psf_conv], outputs_conv, name='psf_convolution')
+# psfconvolve.summary()
 
 # instantiate VAE model
-outputs = decoder(encoder(inputs)[2])
-vae = Model(inputs, outputs, name='vae')
+outputs_ = decoder([encoder(inputs_img), psf_inputs])
+vae = Model([inputs_img, psf_inputs], outputs_, name='vae')
 
 models = (encoder, decoder)
 
 # ******** LOSS AND OPTIMIZER ********
 
 # VAE loss = mse_loss or xent_loss + kl_loss
-reconstruction_loss = binary_crossentropy(K.flatten(inputs), K.flatten(outputs))
+reconstruction_loss = binary_crossentropy(K.flatten(x[0]), K.flatten(outputs))
 
 reconstruction_loss *= nx * ny
 kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
@@ -237,7 +261,7 @@ vae.summary()
 
 # ******** TRAINING ********
 # train the autoencoder
-vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
+vae.fit({'encoder_input': x_train, 'psf_input': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_input': psf_test}, None))
 
 # Save weights and models
 vae.save(DataDir+'models/cnn_vae_model_cosmos.h5')
@@ -246,8 +270,7 @@ vae.save_weights(DataDir+'cnn_vae_weights_cosmos.h5')
 encoder.save(DataDir+'models/cnn_vae_encoder_model_galsim.h5')
 encoder.save_weights(DataDir+'models/cnn_vae_encoder_weights_cosmos.h5')
 
-decoder_deconv.save(DataDir+'models/cnn_vae_decoder_deconv_model_cosmos.h5')
-decoder_deconv.save_weights(DataDir+'models/cnn_vae_decoder_deconv_weights_cosmos.h5')
+# psfconvolve.save(DataDir+'models/cnn_vae_psfconvolve_model_cosmos.h5')
 
 decoder.save(DataDir+'models/cnn_vae_decoder_model_cosmos.h5')
 decoder.save_weights(DataDir+'models/cnn_vae_decoder_weights_cosmos.h5')
@@ -256,28 +279,28 @@ decoder.save_weights(DataDir+'models/cnn_vae_decoder_weights_cosmos.h5')
 
 x_train_encoded = encoder.predict(x_train)
 x_train_encoded = K.cast_to_floatx(x_train_encoded)
-x_train_decoded_deconv = decoder_deconv(x_train_encoded[0])
+# x_train_decoded_deconv = decoder_deconv(x_train_encoded[0])
 x_train_decoded = decoder.predict(x_train_encoded[0])
 
 x_test_encoded = encoder.predict(x_test)
 x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
-x_test_decoded_deconv = decoder_deconv(x_train_encoded[0])
+# x_test_decoded_deconv = decoder_deconv(x_train_encoded[0])
 x_test_decoded = decoder.predict(x_test_encoded)
 
 f = h5py.File(DataDir + 'results/x_train.hdf5', 'w')
 f.create_dataset('encoded', data=x_train_encoded)
-f.create_dataset('decoded_deconv', data=x_train_decoded_deconv)
+# f.create_dataset('decoded_deconv', data=x_train_decoded_deconv)
 f.create_dataset('decoded', data=x_train_decoded)
 f.close()
 
 f = h5py.File(DataDir + 'results/x_test.hdf5', 'w')
 f.create_dataset('encoded', data=x_test_encoded)
-f.create_dataset('decoded_deconv', data=x_test_decoded_deconv)
+# f.create_dataset('decoded_deconv', data=x_test_decoded_deconv)
 f.create_dataset('decoded', data=x_test_decoded)
 f.close()
 
 # --------------------------------- Plot ---------------------------------
 
-plot = True
-if plot:
-    plot_results([x_train, x_train_encoded, x_train_decoded_deconv, x_train_decoded], [x_test, x_test_encoded, x_test_decoded_deconv, x_test_decoded])
+plot = False
+# if plot:
+# plot_results([x_train, x_train_encoded, x_train_decoded_deconv, x_train_decoded], [x_test, x_test_encoded, x_test_decoded_deconv, x_test_decoded])

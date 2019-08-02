@@ -1,6 +1,7 @@
 import galsim
 import numpy as np
 import matplotlib.pyplot as plt
+# from matplotlib.colors import LogNorm
 import os
 import h5py
 import cmath
@@ -16,8 +17,10 @@ def plot_gal(dataset_real, dataset_param, psf):
         plt.imshow(dataset_param[i])
 
         plt.subplot(3, 10, 20+i+1)
-        plt.imshow(np.real(np.fft.ifft2(psf[i])))
+        psfplot = np.real(np.fft.ifft2(psf[i]))
+        plt.imshow(psfplot)
     plt.show()
+    return psfplot
 
 
 def load_params(index, catalog, n_params):
@@ -67,8 +70,8 @@ if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')
 
 # Set filenames
-file_name_train = os.path.join('../Data/output_cosmos', 'cosmos_real_train_'+str(n_train)+'.hdf5')
-file_name_test = os.path.join('../Data/output_cosmos', 'cosmos_real_test_'+str(n_test)+'.hdf5')
+file_name_train = os.path.join('../Data/Cosmos/data', 'cosmos_real_train_'+str(n_train)+'.hdf5')
+file_name_test = os.path.join('../Data/Cosmos/data', 'cosmos_real_test_'+str(n_test)+'.hdf5')
 
 # Set parameters labels
 params_labels = np.array(['flux_sersic', 'hlr_sersic', 'q_sersic', 'phi_sersic', 'flux_bulge', 'hlr_bulge', 'q_bulge', 'phi_bulge', 'flux_disk', 'hlr_disk', 'q_disk', 'phi_disk'])
@@ -89,8 +92,8 @@ testing_parametric = np.zeros((n_test, nx, ny))
 training_params = np.zeros((n_train, n_params))
 testing_params = np.zeros((n_test, n_params))
 # Training and testing psfs
-training_psf = np.zeros((n_train, nx, ny), dtype=np.complex)
-testing_psf = np.zeros((n_test, nx, ny), dtype=np.complex)
+training_psf = np.zeros((n_train, nx, ny))
+testing_psf = np.zeros((n_test, nx, ny))
 translation = compute_translation((nx, ny))
 
 # Modify GSParams
@@ -110,7 +113,8 @@ for ind in range(n_train):
     training_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     training_params[ind] = load_params(ind, catalog_param, n_params)
-    training_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
+    training_psf[ind] = psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    # training_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
 
 # Generating testing set and params
 print('Loading testing set ...')
@@ -126,7 +130,8 @@ for ind in range(n_test):
     testing_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     testing_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     testing_params[ind] = load_params(i, catalog_param, n_params)
-    testing_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
+    testing_psf[ind] = psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    # testing_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
 
 mean = np.mean(training_params, axis=0)
 mult = np.max(training_params - mean, axis=0)
