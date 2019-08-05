@@ -197,7 +197,7 @@ z_log_var = Dense(latent_dim, name='z_log_var')(x)
 z = Lambda(sampling, output_shape=(latent_dim,), name='z_sampling_')([z_mean, z_log_var])
 
 # instantiate encoder model
-encoder = Model(inputs_img, z, name='encoder')
+encoder = Model(inputs_img, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
 # plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 
@@ -219,9 +219,10 @@ for i in range(n_conv):
 
 x = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x)
 
-outputs = Lambda(psf_convolve, output_shape=(input_shape,))([x, psf_inputs])
+outputs = Lambda(psf_convolve, output_shape=input_shape)([x, psf_inputs])
 
 # # instantiate decoder model
+# decoder = Model([latent_inputs, psf_inputs], outputs, name='decoder')
 decoder = Model([latent_inputs, psf_inputs], outputs, name='decoder')
 decoder.summary()
 # # plot_model(decoder, to_file='vae_cnn_decoder.png', show_shapes=True)
@@ -237,7 +238,8 @@ decoder.summary()
 # psfconvolve.summary()
 
 # instantiate VAE model
-outputs_ = decoder([encoder(inputs_img), psf_inputs])
+# outputs_ = decoder([encoder(inputs_img), psf_inputs])
+outputs_ = decoder([encoder(inputs_img)[2], psf_inputs])
 vae = Model([inputs_img, psf_inputs], outputs_, name='vae')
 
 models = (encoder, decoder)
@@ -262,6 +264,8 @@ vae.summary()
 # ******** TRAINING ********
 # train the autoencoder
 vae.fit({'encoder_input': x_train, 'psf_input': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_input': psf_test}, None))
+
+# vae.fit(x_train, batch_size=batch, epochs=epochs, validation_data=(x_test, None))
 
 # Save weights and models
 vae.save(DataDir+'models/cnn_vae_model_cosmos.h5')

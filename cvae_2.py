@@ -124,9 +124,9 @@ def plot_results(models,
 # x_test1 = np.reshape(x_test1, [-1, image_size1, image_size1, 1])
 
 # Load training/testing set
-DataDir = '../../Data/'
-x_train = np.array(h5py.File(DataDir + 'output_cosmos/cosmos_train_512.hdf5', 'r')['galaxies'])
-x_test = np.array(h5py.File(DataDir + 'output_cosmos/cosmos_test_64.hdf5', 'r')['galaxies'])
+DataDir = '../Data/'
+x_train = np.array(h5py.File(DataDir + 'Cosmos/data/cosmos_train_512.hdf5', 'r')['galaxies'])
+x_test = np.array(h5py.File(DataDir + 'Cosmos/data/cosmos_test_64.hdf5', 'r')['galaxies'])
 
 # y_train = np.loadtxt(DataDir + 'lhc_512_5.txt')
 # y_test = np.loadtxt(DataDir + 'lhc_64_5_testing.txt')
@@ -182,11 +182,11 @@ x_test = x_test.astype('float32')  # / 255
 input_shape = (image_size, image_size, 1)
 batch = 32
 kernel_size = 4
-n_conv = 0
+n_conv = 2
 filters = 16
 interm_dim = 128
 latent_dim = 20
-epochs = 1000
+epochs = 2
 
 epsilon_mean = 0.
 epsilon_std = 1e-4
