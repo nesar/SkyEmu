@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 from keras.layers import Dense, Input
-from keras.layers import Conv2D, Flatten, Lambda
+from keras.layers import Conv2D, Flatten, Lambda, GaussianNoise
 from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
 from keras.datasets import mnist
@@ -31,6 +31,11 @@ def psf_convolve(args):
     convfft = tf.spectral.irfft2d(imgfft * psffft)
     h = tf.expand_dims(convfft, axis=-1)
     return h
+
+
+def poisson_noise(args):
+    img = args
+    return tf.random.normal((64, 64, 1), mean=img, stddev=5e-3)
 
 
 def rescale(params):
@@ -289,7 +294,9 @@ x1 = Conv2DTranspose(filters=1,
                           padding='same',
                           name='decoder_output')(x1)
 
-outputs1 = Lambda(psf_convolve, output_shape=input_shape)([x1, psf_inputs1])
+x1 = Lambda(psf_convolve, output_shape=input_shape)([x1, psf_inputs1])
+# outputs1 = GaussianNoise(stddev=1)(x1)
+outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
 
 # instantiate decoder model
 decoder1 = Model([latent_inputs1, psf_inputs1], outputs1, name='decoder')
