@@ -63,8 +63,8 @@ def fft_shift_psf(psf, translation):
 nx = 64
 ny = 64
 pixel_scale = 0.04
-n_train = 2048
-n_test = 128
+n_train = 2**14
+n_test = 2**9
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')

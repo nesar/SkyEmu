@@ -363,7 +363,7 @@ x_test_decoded = decoder1.predict(x_test_encoded)
 np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'_5.txt', x_train_encoded[2])
 np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(n_train)+'_5.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
 
-np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(n_test)+'_5.txt', x_test_encoded[2])
+np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(n_test)+'_5.txt', x_test_encoded)
 np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(n_test)+'_5.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
 
 # np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])

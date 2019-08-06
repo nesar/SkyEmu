@@ -11,6 +11,13 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 # ------------------------- Computing assessments ---------------------------
 
 
+def rescale(img):
+    """
+    Rescale an image between 0 and 1 to plot.
+    """
+    return (img - np.min(img)) / np.max(img - np.min(img))
+
+
 def mse_r2(true, predicted):
     """
     Compute the mean square error (mse) and the r squared error (r2) of the predicted set of images.
@@ -41,13 +48,16 @@ def mse_r2(true, predicted):
         plt.xlabel('MSE')
         plt.ylabel('Density')
         plt.title('MSE distribution (min = '+str(np.min(mse))+', max = '+str(np.max(mse))+', median = '+str(np.median(mse))+').')
+        plt.savefig('../Plots/Cosmos_plots/cosmos_mse_distribution.png')
 
         plt.figure('R$^2$ distribution')
         h = plt.hist(r2, bins=50, density=True)
         plt.xlabel('R$^2$')
         plt.ylabel('Density')
         plt.title('R$^2$ distribution (min = '+str(np.min(r2))+', max = '+str(np.max(r2))+', median = '+str(np.median(r2))+').')
-        plt.show()
+        # plt.show()
+        plt.savefig('../Plots/Cosmos_plots/cosmos_r2_distribution.png')
+        plt.close()
 
     return mse, r2
 
@@ -60,12 +70,14 @@ def pixel_intensity(true, predicted):
     counts_pred, bins = np.histogram(predicted.flatten(), bins=bins)
 
     plt.figure('Pixel flux value distribution')
-    plt.plot(bins[:-1], counts_true, 's-', label='True')
-    plt.plot(bins[:-1], counts_pred, 's-', label='Predicted')
+    plt.semilogy(bins[:-1], counts_true, 's-', label='True')
+    plt.semilogy(bins[:-1], counts_pred, 's-', label='Predicted')
     plt.legend()
     plt.xlabel('Pixel intensity')
     plt.ylabel('Counts')
-    plt.show()
+    # plt.show()
+    plt.savefig('../Plots/Cosmos_plots/cosmos_pixels_intensity.png')
+    plt.close()
 
 
 def shear_estimation(true, predicted, psf):
@@ -102,14 +114,14 @@ def shear_estimation(true, predicted, psf):
 
     plt.figure('Shear estimation')
     plt.subplot(221)
-    plt.plot(bins1[:-1], countsg1_true, 's--', label='True g1')
-    plt.plot(bins1[:-1], countsg1_pred, 's--', label='Predicted g1')
+    plt.semilogy(bins1[:-1], countsg1_true, 's--', label='True g1')
+    plt.semilogy(bins1[:-1], countsg1_pred, 's--', label='Predicted g1')
     plt.legend()
     plt.xlabel('g1 value')
     plt.ylabel('Counts')
     plt.subplot(222)
-    plt.plot(bins2[:-1], countsg2_true, 's--', label='True g2')
-    plt.plot(bins2[:-1], countsg2_pred, 's--', label='Predicted g2')
+    plt.semilogy(bins2[:-1], countsg2_true, 's--', label='True g2')
+    plt.semilogy(bins2[:-1], countsg2_pred, 's--', label='Predicted g2')
     plt.legend()
     plt.xlabel('g2 value')
     plt.ylabel('Counts')
@@ -129,12 +141,128 @@ def shear_estimation(true, predicted, psf):
     plt.xlabel('True g2')
     plt.ylabel('Predicted g2')
     # plt.legend()
-    plt.show()
+    plt.savefig('../Plots/Cosmos_plots/cosmos_shear_estimation.png')
+    plt.close()
 
     diff_g1 = abs(shear_true[:, 0] - shear_pred[:, 0]) * abs(1+shear_true[:, 0]) ** -1
     diff_g2 = abs(shear_true[:, 1] - shear_pred[:, 1]) * abs(1+shear_true[:, 1]) ** -1
 
     return diff_g1, diff_g2
+
+
+def plot_results(x_train, x_train_decoded, x_test, x_test_decoded):
+    x_train_plt = rescale(x_train[0])
+    x_train_decoded_plt = rescale(x_train_decoded[0])
+    error_train_plt = rescale(abs(x_train[0] - x_train_decoded[0]))
+
+    x_test_plt = rescale(x_test[0])
+    x_test_decoded_plt = rescale(x_test_decoded[0])
+    error_test_plt = rescale(abs(x_test[0] - x_test_decoded[0]))
+
+    for i in range(10):
+        x_train_plt = np.concatenate((x_train_plt, rescale(x_train[i+1])), axis=1)
+        x_train_decoded_plt = np.concatenate((x_train_decoded_plt, rescale(x_train_decoded[i+1])), axis=1)
+        error_train_plt = np.concatenate((error_train_plt, rescale(abs(x_train[i+1] - x_train_decoded[i+1]))), axis=1)
+
+        x_test_plt = np.concatenate((x_test_plt, rescale(x_test[i+1])), axis=1)
+        x_test_decoded_plt = np.concatenate((x_test_decoded_plt, rescale(x_test_decoded[i+1])), axis=1)
+        error_test_plt = np.concatenate((error_test_plt, rescale(abs(x_test[i+1] - x_test_decoded[i+1]))), axis=1)
+
+    plt.figure()
+    plt.subplot(311)
+    plt.imshow(x_train_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(312)
+    plt.imshow(x_train_decoded_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(313)
+    plt.imshow(error_train_plt, cmap='gray')
+    plt.axis('off')
+    plt.savefig('../Plots/Cosmos_plots/cosmos_training_set_images.png')
+    plt.close()
+
+    plt.figure()
+    plt.subplot(311)
+    plt.imshow(x_test_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(312)
+    plt.imshow(x_test_decoded_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(313)
+    plt.imshow(error_test_plt, cmap='gray')
+    plt.axis('off')
+    plt.savefig('../Plots/Cosmos_plots/cosmos_testing_set_images.png')
+    plt.close()
+
+
+def latent_space(x_train_encoded, x_test_encoded, y_train, y_test):
+
+    PlotScatter = True
+    if PlotScatter:
+        w1 = 1
+        w2 = 2
+        # display a 2D plot of latent space (just 2 dimensions)
+        plt.figure(figsize=(6, 6))
+        plt.scatter(x_train_encoded[:, w1], x_train_encoded[:, w2], c=y_train[:, 0], cmap='spring')
+        plt.colorbar()
+        plt.scatter(x_test_encoded[:, w1], x_test_encoded[:, w2], c=y_test[:, 0], cmap='copper')
+        plt.colorbar()
+        # plt.title(fileOut)
+        plt.savefig('../Plots/Cosmos_plots/cnn_vae_scatter_latent_'+str(w1)+'_vs_'+str(w2)+'.png')
+        plt.close()
+
+    PlotFull = False
+    if PlotFull:
+        params_dim = x_train_encoded.shape[1]
+        latent_dim = y_train.shape[1]
+        total_dim = params_dim + latent_dim
+        f, a = plt.subplots(total_dim, total_dim, sharex=True, sharey=True)
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+        plt.rcParams.update({'font.size': 4})
+        for i in range(params_dim):
+            for j in range(i+1):
+                if(i != j):
+                    a[i, j].scatter(y_train[:, i], y_train[:, j], s=1, alpha=0.7)
+                    a[i, j].scatter(y_test[:, i], y_test[:, j], s=1, alpha=0.7)
+                    a[i, j].grid(True)
+                    a[j, i].set_visible(False)
+                    plt.xticks([])
+                    plt.yticks([])
+                else:
+                    # a[i, i].text(0.4, 0.4, params[i], size='x-large')
+                    hist, bin_edges = np.histogram(y_train[:, i], density=True, bins=12)
+                    a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
+                    plt.xticks([])
+                    plt.yticks([])
+
+        for i in range(latent_dim):
+            for j in range(params_dim):
+                a[i+params_dim, j].scatter(x_train_encoded[:, i], y_train[:, j], s=1, alpha=0.7)
+                a[i+params_dim, j].scatter(x_test_encoded[:, i], y_test[:, j], s=1, alpha=0.7)
+                a[i+params_dim, j].grid(True)
+                a[j, i+params_dim].set_visible(False)
+                plt.yticks([])
+
+        for i in range(latent_dim):
+            for j in range(i+1):
+                if(i != j):
+                    a[i+params_dim, j+params_dim].scatter(x_train_encoded[:, i], x_train_encoded[:, j], s=1, alpha=0.7)
+                    a[i+params_dim, j+params_dim].scatter(x_test_encoded[:, i], x_test_encoded[:, j], s=1, alpha=0.7)
+                    a[i+params_dim, j+params_dim].grid(True)
+                    a[j+params_dim, i+params_dim].set_visible(False)
+                    plt.xticks([])
+                    plt.yticks([])
+                else:
+                    # a[i+params_dim, i+params_dim].text(0.4, 0.4, 'Latent space '+str(i), size='x-large')
+                    hist, bin_edges = np.histogram(x_train_encoded[:, i], density=True, bins=12)
+                    a[i+params_dim, i+params_dim].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
+                    plt.xticks([])
+                    plt.yticks([])
+
+        plt.tight_layout()
+        plt.savefig('../Plots/Cosmos_plots/Latent_vs_params_full_corr.pdf', figsize=(20000, 20000), bbox_inches="tight")
+        plt.close()
+
 
 # ------------------------------------- MAIN -----------------------------------------
 
@@ -151,8 +279,15 @@ def main():
     # ------------------------ Load data and models -----------------------------
 
     # Load training and testing set
-    x_train = np.array(h5py.File(DataDir + 'data/cosmos_real_train_2048.hdf5', 'r')['real galaxies'])
-    x_test = np.array(h5py.File(DataDir + 'data/cosmos_real_test_128.hdf5', 'r')['real galaxies'])
+    f = h5py.File(DataDir + 'data/cosmos_real_train_2048.hdf5', 'r')
+    x_train = np.array(f['real galaxies'])
+    y_train = np.array(f['parameters'])
+    f.close()
+
+    f = h5py.File(DataDir + 'data/cosmos_real_test_128.hdf5', 'r')
+    x_test = np.array(f['real galaxies'])
+    y_test = np.array(f['parameters'])
+    f.close()
 
     # Rescaling
     xmin = np.min(x_train)
@@ -162,6 +297,11 @@ def main():
     x_train = K.cast_to_floatx(x_train)
     x_test = K.cast_to_floatx(x_test)
 
+    ymin = np.min(y_train)
+    ymax = np.max(y_train - ymin)
+    y_train = (y_train - ymin) / ymax
+    y_test = (y_test - ymin) / ymax
+
     # Compute reconstructed testing set
     # x_test_encoded = np.loadtxt(DataDir+'Cosmos/models/cvae_encoded_xtest_512_5.txt')
     # x_test_encoded = K.cast_to_floatx(x_test_encoded)
@@ -170,75 +310,19 @@ def main():
     # decoder = load_model(DataDir+'Galsim/cvae_decoder_model_galsim.h5')
     # x_test_decoded = np.zeros((ntest, nx, ny))
     # x_test_decoded = decoder.predict(x_test_encoded)
-    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_128_5.txt'), (ntest, nx, ny))
+    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'_5.txt'), (ntest, nx, ny))
+    x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'_5.txt')
 
     # Load reconstructed training set
-    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_2048_5.txt'), (ntrain, nx, ny))
+    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'_5.txt'), (ntrain, nx, ny))
+    x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'_5.txt')
 
     # -------------------- Plotting routines --------------------------
 
-    plt.figure()
-    for i in range(10):
-        plt.subplot(3, 10, i+1)
-        plt.imshow(np.reshape(x_train[i], (nx, ny)))
-        # plt.title('Emulated image using PCA + GP '+str(i))
-        # plt.colorbar()
-        plt.subplot(3, 10, 10+i+1)
-        plt.imshow(np.reshape(x_train_decoded[i], (nx, ny)))
-        # plt.title('Simulated image using GalSim '+str(i))
-        # plt.colorbar()
-        plt.subplot(3, 10, 20+i+1)
-        plt.imshow(np.reshape(abs(x_train_decoded[i]-x_train[i]), (nx, ny)))
-
-    plt.figure()
-    for i in range(10):
-        plt.subplot(3, 10, i+1)
-        plt.imshow(np.reshape(x_test[i], (nx, ny)))
-        # plt.title('Emulated image using PCA + GP '+str(i))
-        # plt.colorbar()
-        plt.subplot(3, 10, 10+i+1)
-        plt.imshow(np.reshape(x_test_decoded[i], (nx, ny)))
-        # plt.title('Simulated image using GalSim '+str(i))
-        # plt.colorbar()
-        plt.subplot(3, 10, 20+i+1)
-        plt.imshow(np.reshape(abs(x_test_decoded[i]-x_test[i]), (nx, ny)))
-
-    plt.show()
-
-    # PlotScatter = False
-    # if PlotScatter:
-
-    #     w1 = 1
-    #     w2 = 2
-    #     # display a 2D plot of latent space (just 2 dimensions)
-    #     plt.figure(figsize=(6, 6))
-
-    #     x_train_encoded = encoder.predict(x_train)
-    #     plt.scatter(x_train_encoded[0][:, w1], x_train_encoded[0][:, w2], c=y_train[:, 0], cmap='spring')
-    #     plt.colorbar()
-
-    #     x_test_encoded = encoder.predict(x_test)
-    #     plt.scatter(x_test_encoded[0][:, w1], x_test_encoded[0][:, w2], c=y_test[:, 0], cmap='copper')
-    #     plt.colorbar()
-    #     # plt.title(fileOut)
-    #     plt.savefig('cvae_Scatter_z'+'.png')
-
-    #     # Plot losses
-    #     n_epochs = np.arange(1, epochs+1)
-    #     train_loss = vae.history.history['loss']
-    #     val_loss = np.ones_like(train_loss)
-    #     fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
-    #     ax.plot(n_epochs, train_loss, '-', lw=1.5)
-    #     ax.plot(n_epochs, val_loss, '-', lw=1.5)
-    #     ax.set_ylabel('loss')
-    #     ax.set_xlabel('epochs')
-    #     ax.legend(['train loss', 'val loss'])
-    #     plt.tight_layout()
-
-    # plt.show()
-
+    plot_results(x_train, x_train_decoded, x_test, x_test_decoded)
     mse, r2 = mse_r2(x_train, x_train_decoded)
     pixel_intensity(x_train, x_train_decoded)
     diff_g1, diff_g2 = shear_estimation(x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
+    latent_space(x_train_encoded, x_test_encoded, y_train, y_test)
 
     return diff_g1, diff_g2
