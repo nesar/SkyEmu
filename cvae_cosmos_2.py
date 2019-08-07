@@ -247,31 +247,7 @@ encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
 plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 
-# build decoder model
-# latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
-# psf_inputs = Input(shape=input_shape, name='psf_input')
-
-# x = Dense(interm_dim, activation='relu')(latent_inputs)
-# x = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x)
-# x = Reshape((shape[1], shape[2], shape[3]))(x)
-
-# for i in range(n_conv):
-#     x = Conv2DTranspose(filters=filters,
-#                         kernel_size=kernel_size,
-#                         activation='relu',
-#                         strides=2,
-#                         padding='same')(x)
-#     filters //= 2
-
-# outputs = Conv2DTranspose(filters=1,
-#                           kernel_size=kernel_size,
-#                           activation='sigmoid',
-#                           padding='same',
-#                           name='decoder_output')(x)
-
-# # instantiate decoder model
-# decoder = Model(latent_inputs, outputs, name='decoder')
-# decoder.summary()
+# DECODER
 
 latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
 psf_inputs1 = Input(shape=input_shape, name='psf_input1')
@@ -288,13 +264,13 @@ for i in range(n_conv):
                         padding='same')(x1)
     filters //= 2
 
-x1 = Conv2DTranspose(filters=1,
+outputs = Conv2DTranspose(filters=1,
                           kernel_size=kernel_size,
                           activation='sigmoid',
                           padding='same',
                           name='decoder_output')(x1)
 
-x1 = Lambda(psf_convolve, output_shape=input_shape)([x1, psf_inputs1])
+x1 = Lambda(psf_convolve, output_shape=input_shape)([outputs, psf_inputs1])
 # outputs1 = GaussianNoise(stddev=1)(x1)
 outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
 
@@ -302,6 +278,7 @@ outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
 decoder1 = Model([latent_inputs1, psf_inputs1], outputs1, name='decoder')
 decoder1.summary()
 # plot_model(decoder1, to_file='vae_cnn_decoder.png', show_shapes=True)
+# decoder_nopsfnoise = Model(latent_inputs1, outputs, name='decoder_nopsfnoise')
 
 # instantiate VAE model
 outputs = decoder1([encoder(inputs)[2], psf_inputs1])
@@ -369,7 +346,6 @@ np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(n_test)+'_5.txt', np.
 # np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
 # ---------------------- GP fitting -------------------------------
 
-
 def gp_fit(weights, y_train):
     """
     Learns the GP related to the weigths matrix
@@ -389,7 +365,7 @@ def gp_fit(weights, y_train):
     model.optimize()
 
     # Save model
-    model.save_model('../Data/GPmodel/gpfit_cvae', compress=True, save_data=True)
+    model.save_model('../Data/Cosmos/gpmodel/gpfit_cvae', compress=True, save_data=True)
     return model
 
 

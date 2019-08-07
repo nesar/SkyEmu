@@ -63,8 +63,8 @@ def fft_shift_psf(psf, translation):
 nx = 64
 ny = 64
 pixel_scale = 0.04
-n_train = 2**14
-n_test = 2**9
+n_train = 2**11
+n_test = 2**7
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')
@@ -169,7 +169,7 @@ f.create_dataset('parametric galaxies', data=training_parametric)
 f.create_dataset('parameters', data=training_params)
 f.create_dataset('psf', data=training_psf)
 f.close()
-
+# 
 f = h5py.File(file_name_test, 'w')
 f.create_dataset('real galaxies', data=testing_set)
 f.create_dataset('parametric galaxies', data=testing_parametric)
