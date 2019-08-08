@@ -7,6 +7,9 @@ from keras.models import load_model
 from matplotlib.colors import LogNorm
 from matplotlib import cm
 
+import matplotlib
+matplotlib.use('Agg')
+
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -29,7 +32,7 @@ def rescale(img):
     return (img - np.min(img)) / np.max(img - np.min(img))
 
 
-def mse_r2(true, predicted):
+def mse_r2(PlotDir, true, predicted):
     """
     Compute the mean square error (mse) and the r squared error (r2) of the predicted set of images.
     Inputs :
@@ -60,7 +63,7 @@ def mse_r2(true, predicted):
         plt.ylabel('Density')
         plt.title('MSE distribution (min = '+str(np.min(mse))+', max = '+str(np.max(mse))+', median = '+str(np.median(mse))+').')
         plt.tight_layout()
-        plt.savefig('../Plots/Cosmos_plots/cosmos_mse_distribution.png')
+        plt.savefig(PlotDir+'cosmos_mse_distribution.png')
         plt.close()
 
         plt.figure('R$^2$ distribution')
@@ -70,13 +73,13 @@ def mse_r2(true, predicted):
         plt.title('R$^2$ distribution (min = '+str(np.min(r2))+', max = '+str(np.max(r2))+', median = '+str(np.median(r2))+').')
         # plt.show()
         plt.tight_layout()
-        plt.savefig('../Plots/Cosmos_plots/cosmos_r2_distribution.png')
+        plt.savefig(PlotDir+'cosmos_r2_distribution.png')
         plt.close()
 
     return mse, r2
 
 
-def pixel_intensity(true, predicted):
+def pixel_intensity(PlotDir, true, predicted):
     """
     Plots the distribution of pixel intensities for the validation set (or any set made of real/input image set) and the reconstructed/predicted data set.
     """
@@ -97,11 +100,11 @@ def pixel_intensity(true, predicted):
     plt.xlabel('True pixel intensity')
     plt.ylabel('Predicted pixel intensity')
     plt.tight_layout()
-    plt.savefig('../Plots/Cosmos_plots/cosmos_pixels_intensity.png')
+    plt.savefig(PlotDir+'cosmos_pixels_intensity.png')
     plt.close()
 
 
-def shear_estimation(true, predicted, psf):
+def shear_estimation(PlotDir, true, predicted, psf):
     """
     Using galsim.hsm.EstimateShear(gal_img, psf) : Estimate galaxy shear, correcting for the conv. by psf.
     """
@@ -163,7 +166,7 @@ def shear_estimation(true, predicted, psf):
     plt.ylabel('Predicted g2')
     # plt.legend()
     plt.tight_layout()
-    plt.savefig('../Plots/Cosmos_plots/cosmos_shear_estimation.png')
+    plt.savefig(PlotDir+'cosmos_shear_estimation.png')
     plt.close()
 
     diff_g1 = abs(shear_true[:, 0] - shear_pred[:, 0]) * abs(1+shear_true[:, 0]) ** -1
@@ -172,7 +175,7 @@ def shear_estimation(true, predicted, psf):
     return diff_g1, diff_g2
 
 
-def plot_results(x_train, x_train_decoded, x_test, x_test_decoded):
+def plot_results(PlotDir, x_train, x_train_decoded, x_test, x_test_decoded):
     x_train_plt = rescale(x_train[0])
     x_train_decoded_plt = rescale(x_train_decoded[0])
     error_train_plt = rescale(abs(x_train[0] - x_train_decoded[0]))
@@ -201,7 +204,7 @@ def plot_results(x_train, x_train_decoded, x_test, x_test_decoded):
     plt.imshow(error_train_plt, cmap='gray')
     plt.axis('off')
     plt.tight_layout()
-    plt.savefig('../Plots/Cosmos_plots/cosmos_training_set_images.png')
+    plt.savefig(PlotDir+'cosmos_training_set_images.png')
     plt.close()
 
     plt.figure()
@@ -215,11 +218,11 @@ def plot_results(x_train, x_train_decoded, x_test, x_test_decoded):
     plt.imshow(error_test_plt, cmap='gray')
     plt.axis('off')
     plt.tight_layout()
-    plt.savefig('../Plots/Cosmos_plots/cosmos_testing_set_images.png')
+    plt.savefig(PlotDir+'cosmos_testing_set_images.png')
     plt.close()
 
 
-def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge):
+def latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge):
     latent_dim = x_train_encoded.shape[1]
     n_train, params_dim = y_train.shape
     n_test = y_test.shape[0]
@@ -264,7 +267,7 @@ def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_tra
                 # plt.scatter(x_test_encoded_[:, w1], x_test_encoded_[:, w2], c=y_test_[:, i]+1e-6, cmap='Wistia', norm=LogNorm(1e-6, y_train_[:, i].max()))
                 plt.scatter(x_test_encoded[:, w1], x_test_encoded[:, w2], c=y_test_.flatten(), cmap='Wistia')
                 plt.colorbar()
-                plt.savefig('../Plots/Cosmos_plots/cosmos_cnn_vae_scatter_latent_'+str(w1)+'_vs_'+str(w2)+'_param_'+str(npar)+'.png')
+                plt.savefig(PlotDir+'cosmos_cnn_vae_scatter_latent_'+str(w1)+'_vs_'+str(w2)+'_param_'+str(npar)+'.png')
                 # plt.show()
                 plt.close()
 
@@ -289,7 +292,7 @@ def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_tra
                     plt.xticks([])
                     plt.yticks([])
         plt.tight_layout()
-        plt.savefig('../Plots/Cosmos_plots/params_sersic_distrib_corr.png', figsize=(20000, 20000), bbox_inches="tight")
+        plt.savefig(PlotDir+'params_sersic_distrib_corr.png', figsize=(20000, 20000), bbox_inches="tight")
         plt.close()
 
         f, a = plt.subplots(8, 8, sharex=True, sharey=True)
@@ -311,7 +314,7 @@ def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_tra
                     plt.xticks([])
                     plt.yticks([])
         plt.tight_layout()
-        plt.savefig('../Plots/Cosmos_plots/params_bulge+disk_distrib_corr.png', figsize=(20000, 20000), bbox_inches="tight")
+        plt.savefig(PlotDir+'params_bulge+disk_distrib_corr.png', figsize=(20000, 20000), bbox_inches="tight")
         plt.close()
 
         f, a = plt.subplots(latent_dim, params_dim, sharex=True, sharey=True)
@@ -325,7 +328,7 @@ def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_tra
                 # a[j, i].set_visible(False)
                 plt.yticks([])
         plt.tight_layout()
-        plt.savefig('../Plots/Cosmos_plots/latent_vs_params_distrib_corr.png', figsize=(20000, 20000), bbox_inches="tight")
+        plt.savefig(PlotDir+'latent_vs_params_distrib_corr.png', figsize=(20000, 20000), bbox_inches="tight")
         plt.close()
 
         f, a = plt.subplots(latent_dim, latent_dim, sharex=True, sharey=True)
@@ -347,7 +350,7 @@ def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_tra
                     plt.xticks([])
                     plt.yticks([])
         plt.tight_layout()
-        plt.savefig('../Plots/Cosmos_plots/latent_vs_latent_corr.png', figsize=(20000, 20000), bbox_inches="tight")
+        plt.savefig(PlotDir+'latent_vs_latent_corr.png', figsize=(20000, 20000), bbox_inches="tight")
         plt.close()
 
 
@@ -358,6 +361,7 @@ def main():
 
     # ------------------------ Parameters ---------------------------------------
     DataDir = '../Data/Cosmos/'
+    PlotDir = '../Plots/Cosmos_plots/'
     ntrain = 4096
     ntest = 256
     nx = 64
@@ -414,8 +418,8 @@ def main():
 
     # -------------------- Plotting routines --------------------------
 
-    plot_results(x_train, x_train_decoded, x_test, x_test_decoded)
-    mse, r2 = mse_r2(x_train, x_train_decoded)
-    pixel_intensity(x_train, x_train_decoded)
-    diff_g1, diff_g2 = shear_estimation(x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
-    latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
+    plot_results(PlotDir, x_train, x_train_decoded, x_test, x_test_decoded)
+    mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded)
+    pixel_intensity(PlotDir, x_train, x_train_decoded)
+    diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
+    latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)

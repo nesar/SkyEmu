@@ -137,8 +137,8 @@ def plot_results(models,
 # network parameters
 DataDir = '../Data/Cosmos/'
 
-n_train = 2**12
-n_test = 2**8
+n_train = 4096
+n_test = 256
 nx = 64
 ny = 64
 
@@ -211,8 +211,10 @@ filters = 16
 interm_dim1 = 512
 interm_dim2 = 128
 latent_dim = 20
-epochs = 2
+epochs = 500
 drop = 0.5
+l1_ = 0.01
+l2_ = 0.01
 
 epsilon_mean = 0.
 epsilon_std = 1e-4
@@ -271,7 +273,7 @@ for i in range(n_conv):
     x1 = Conv2DTranspose(filters=filters, kernel_size=kernel_size, activation='relu', strides=2, padding='same')(x1)
     filters //= 2
 
-outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output', activity_regularizer=l1_l2(l1=0.01, l2=0.01))(x1)
+outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output', activity_regularizer=l1_l2(l1=l1_, l2=l2_))(x1)
 
 # outputs1 = GaussianNoise(stddev=1)(x1)
 # outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
@@ -310,7 +312,8 @@ vae = Model([inputs, psf_inputs], outputs, name='vae')
 # else:
 reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
 
-reconstruction_loss *= nx * ny * tf.math.reduce_mean(inputs)**-1
+# reconstruction_loss *= nx * ny * tf.math.reduce_mean(inputs)**-1
+reconstruction_loss *= nx * ny
 kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
