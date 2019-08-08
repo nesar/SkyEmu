@@ -7,6 +7,7 @@ from keras import backend as K
 from keras.models import load_model
 from matplotlib.colors import LogNorm
 from matplotlib import cm
+import umap
 
 import matplotlib
 matplotlib.use('Agg')
@@ -176,32 +177,39 @@ def shear_estimation(PlotDir, true, predicted, psf):
     return diff_g1, diff_g2
 
 
-def plot_results(PlotDir, x_train, x_train_decoded, x_test, x_test_decoded):
+def plot_results(PlotDir, x_train, x_train_decoded, x_train_decoded_psf, x_test, x_test_decoded, x_test_decoded_psf):
     x_train_plt = rescale(x_train[0])
     x_train_decoded_plt = rescale(x_train_decoded[0])
-    error_train_plt = rescale(abs(x_train[0] - x_train_decoded[0]))
+    x_train_decoded_psf_plt = rescale(x_train_decoded_psf[0])
+    error_train_plt = rescale(abs(x_train[0] - x_train_decoded_psf[0]))
 
     x_test_plt = rescale(x_test[0])
     x_test_decoded_plt = rescale(x_test_decoded[0])
-    error_test_plt = rescale(abs(x_test[0] - x_test_decoded[0]))
+    x_test_decoded_psf_plt = rescale(x_test_decoded_psf[0])
+    error_test_plt = rescale(abs(x_test[0] - x_test_decoded_psf[0]))
 
     for i in range(10):
         x_train_plt = np.concatenate((x_train_plt, rescale(x_train[i+1])), axis=1)
         x_train_decoded_plt = np.concatenate((x_train_decoded_plt, rescale(x_train_decoded[i+1])), axis=1)
-        error_train_plt = np.concatenate((error_train_plt, rescale(abs(x_train[i+1] - x_train_decoded[i+1]))), axis=1)
+        x_train_decoded_psf_plt = np.concatenate((x_train_decoded_psf_plt, rescale(x_train_decoded_psf[i+1])), axis=1)
+        error_train_plt = np.concatenate((error_train_plt, rescale(abs(x_train[i+1] - x_train_decoded_psf[i+1]))), axis=1)
 
         x_test_plt = np.concatenate((x_test_plt, rescale(x_test[i+1])), axis=1)
         x_test_decoded_plt = np.concatenate((x_test_decoded_plt, rescale(x_test_decoded[i+1])), axis=1)
-        error_test_plt = np.concatenate((error_test_plt, rescale(abs(x_test[i+1] - x_test_decoded[i+1]))), axis=1)
+        x_test_decoded_psf_plt = np.concatenate((x_test_decoded_psf_plt, rescale(x_test_decoded_psf[i+1])), axis=1)
+        error_test_plt = np.concatenate((error_test_plt, rescale(abs(x_test[i+1] - x_test_decoded_psf[i+1]))), axis=1)
 
     plt.figure()
-    plt.subplot(311)
+    plt.subplot(411)
     plt.imshow(x_train_plt, cmap='gray')
     plt.axis('off')
-    plt.subplot(312)
+    plt.subplot(412)
     plt.imshow(x_train_decoded_plt, cmap='gray')
     plt.axis('off')
-    plt.subplot(313)
+    plt.subplot(413)
+    plt.imshow(x_train_decoded_psf_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(414)
     plt.imshow(error_train_plt, cmap='gray')
     plt.axis('off')
     plt.tight_layout()
@@ -209,13 +217,16 @@ def plot_results(PlotDir, x_train, x_train_decoded, x_test, x_test_decoded):
     plt.close()
 
     plt.figure()
-    plt.subplot(311)
+    plt.subplot(411)
     plt.imshow(x_test_plt, cmap='gray')
     plt.axis('off')
-    plt.subplot(312)
+    plt.subplot(412)
     plt.imshow(x_test_decoded_plt, cmap='gray')
     plt.axis('off')
-    plt.subplot(313)
+    plt.subplot(413)
+    plt.imshow(x_test_decoded_psf_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(414)
     plt.imshow(error_test_plt, cmap='gray')
     plt.axis('off')
     plt.tight_layout()
@@ -355,10 +366,21 @@ def latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sers
         plt.close()
 
 
+def plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test):
+    reducer = umap.UMAP()
+    embedding_train = reducer.fit_transform(x_train_encoded)
+    embedding_test = reducer.transform(x_test_encoded)
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 0].flatten(), cmap='bone')
+    plt.colorbar()
+    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 0].flatten(), cmap='Wistia')
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(PlotDir+'cosmos_umap.png', figsize=(20000, 20000), bbox_inches="tight")
+    plt.close()
 # ------------------------------------- MAIN -----------------------------------------
 
 
-def main():
+def main(args):
 
     # ------------------------ Parameters ---------------------------------------
     DataDir = '../Data/Cosmos/'
@@ -410,25 +432,29 @@ def main():
     # decoder = load_model(DataDir+'Galsim/cvae_decoder_model_galsim.h5')
     # x_test_decoded = np.zeros((ntest, nx, ny))
     # x_test_decoded = decoder.predict(x_test_encoded)
-    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    x_test_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'.txt')
 
     # Load reconstructed training set
-    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    x_train_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
     x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'.txt')
 
     # -------------------- Plotting routines --------------------------
 
     print('Plot results ...')
-    plot_results(PlotDir, x_train, x_train_decoded, x_test, x_test_decoded)
+    plot_results(PlotDir, x_train, x_train_decoded, x_train_decoded_psf, x_test, x_test_decoded, x_test_decoded_psf)
     print('Plot mse/r2 ...')
-    mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded)
+    mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded_psf)
     print('Plot pixel intensity ...')
-    pixel_intensity(PlotDir, x_train, x_train_decoded)
-    print('Plot shear estimation ...')
-    diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
-    print('Plot latent space ...')
-    latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
+    pixel_intensity(PlotDir, x_train, x_train_decoded_psf)
+    # print('Plot shear estimation ...')
+    # diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
+    # print('Plot latent space ...')
+    # latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
+    print('Plot umap')
+    plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test)
 
 
 if __name__ == "__main__":
