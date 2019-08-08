@@ -211,15 +211,15 @@ filters = 16
 interm_dim1 = 512
 interm_dim2 = 128
 latent_dim = 20
-epochs = 500
+epochs = 200
 drop = 0.5
 l1_ = 0.01
 l2_ = 0.01
 
 epsilon_mean = 0.
-epsilon_std = 1e-4
+epsilon_std = 1e-5
 
-learning_rate = 1e-4
+learning_rate = 1e-5
 decay_rate = 1e-1
 
 # VAE model = encoder + decoder
@@ -239,11 +239,9 @@ shape = K.int_shape(x)
 
 # generate latent vector Q(z|X)
 x = Flatten()(x)
-x = Dropout(drop)(x)
 x = Dense(interm_dim1, activation='relu')(x)
 x = Dropout(drop)(x)
 x = Dense(interm_dim2, activation='relu')(x)
-x = Dropout(drop)(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
@@ -264,9 +262,7 @@ latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
 x1 = Dense(interm_dim2, activation='relu')(latent_inputs1)
 x1 = Dropout(drop)(x1)
 x1 = Dense(interm_dim1, activation='relu')(x1)
-x1 = Dropout(drop)(x1)
 x1 = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x1)
-x1 = Dropout(drop)(x1)
 x1 = Reshape((shape[1], shape[2], shape[3]))(x1)
 
 for i in range(n_conv):

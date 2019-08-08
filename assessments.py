@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import galsim
@@ -413,13 +414,22 @@ def main():
     x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'.txt')
 
     # Load reconstructed training set
-    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
-    x_train_encoded = np.loadtxt(DataDir+'models/models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'.txt')
+    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'.txt')
 
     # -------------------- Plotting routines --------------------------
 
+    print('Plot results ...')
     plot_results(PlotDir, x_train, x_train_decoded, x_test, x_test_decoded)
+    print('Plot mse/r2 ...')
     mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded)
+    print('Plot pixel intensity ...')
     pixel_intensity(PlotDir, x_train, x_train_decoded)
+    print('Plot shear estimation ...')
     diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
+    print('Plot latent space ...')
     latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
+
+
+if __name__ == "__main__":
+    image = main(sys.argv)
