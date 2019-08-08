@@ -136,14 +136,14 @@ def plot_results(models,
 # network parameters
 DataDir = '../Data/Cosmos/'
 
-n_train = 2048
-n_test = 128
+n_train = 2**12
+n_test = 2**8
 nx = 64
 ny = 64
 
 
 # Load training set images and rescale fluxes
-path = DataDir + 'data/cosmos_real_train_'+str(n_train)+'.hdf5'
+path = DataDir + 'data/cosmos_real_trainingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5'
 f = h5py.File(path, 'r')
 x_train = np.array(f['real galaxies'])
 xmin = np.min(x_train)
@@ -152,8 +152,8 @@ x_train = (x_train - xmin) / xmax
 x_train = np.reshape(x_train, (n_train, nx*ny))
 
 # Load testing set parametric images
-x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
-x_train_parametric = np.reshape(x_train_parametric, (n_train, nx*ny))
+# x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
+# x_train_parametric = np.reshape(x_train_parametric, (n_train, nx*ny))
 
 # Load training set parameters and rescale
 y_train = np.array(f['parameters'])
@@ -167,7 +167,7 @@ psf_ = psf_train[0]
 f.close()
 
 # Load testing set and rescale fluxes
-path = DataDir + 'data/cosmos_real_test_'+str(n_test)+'.hdf5'
+path = DataDir + 'data/cosmos_real_testingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5'
 f = h5py.File(path, 'r')
 x_test = np.array(f['real galaxies'])
 x_test = (x_test - xmin) / xmax
@@ -178,8 +178,8 @@ y_test = np.array(f['parameters'])
 y_test = (y_test - ymean) * ymax**-1
 
 # Load testing set parametric images
-x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
-x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
+# x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
+# x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
 
 # Load training set psfs
 psf_test = np.fft.fftshift(np.array(f['psf']))
@@ -209,7 +209,7 @@ n_conv = 2
 filters = 16
 interm_dim = 128
 latent_dim = 20
-epochs = 1000
+epochs = 2
 
 epsilon_mean = 0.
 epsilon_std = 1e-4
@@ -250,39 +250,38 @@ plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 # DECODER
 
 latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
-psf_inputs1 = Input(shape=input_shape, name='psf_input1')
+# psf_inputs1 = Input(shape=input_shape, name='psf_input1')
 
 x1 = Dense(interm_dim, activation='relu')(latent_inputs1)
 x1 = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x1)
 x1 = Reshape((shape[1], shape[2], shape[3]))(x1)
 
 for i in range(n_conv):
-    x1 = Conv2DTranspose(filters=filters,
-                        kernel_size=kernel_size,
-                        activation='relu',
-                        strides=2,
-                        padding='same')(x1)
+    x1 = Conv2DTranspose(filters=filters, kernel_size=kernel_size, activation='relu', strides=2, padding='same')(x1)
     filters //= 2
 
-outputs = Conv2DTranspose(filters=1,
-                          kernel_size=kernel_size,
-                          activation='sigmoid',
-                          padding='same',
-                          name='decoder_output')(x1)
+outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x1)
 
-x1 = Lambda(psf_convolve, output_shape=input_shape)([outputs, psf_inputs1])
 # outputs1 = GaussianNoise(stddev=1)(x1)
-outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
+# outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
 
 # instantiate decoder model
-decoder1 = Model([latent_inputs1, psf_inputs1], outputs1, name='decoder')
+decoder1 = Model(latent_inputs1, outputs, name='decoder')
 decoder1.summary()
+
+dec_inputs2 = Input(shape=input_shape, name='dec_inputs2')
+psf_inputs = Input(shape=input_shape, name='psf_inputs')
+
+outputs2 = Lambda(psf_convolve, output_shape=input_shape)([dec_inputs2, psf_inputs])
+
+decoder2 = Model([dec_inputs2, psf_inputs], outputs2)
+decoder2.summary()
 # plot_model(decoder1, to_file='vae_cnn_decoder.png', show_shapes=True)
 # decoder_nopsfnoise = Model(latent_inputs1, outputs, name='decoder_nopsfnoise')
 
 # instantiate VAE model
-outputs = decoder1([encoder(inputs)[2], psf_inputs1])
-vae = Model([inputs, psf_inputs1], outputs, name='vae')
+outputs = decoder2([decoder1(encoder(inputs)[2]), psf_inputs])
+vae = Model([inputs, psf_inputs], outputs, name='vae')
 
 ####### main function #######
 # parser = argparse.ArgumentParser()
@@ -298,53 +297,61 @@ vae = Model([inputs, psf_inputs1], outputs, name='vae')
 # if args.mse:
 #     reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
 # else:
-reconstruction_loss = binary_crossentropy(K.flatten(inputs), K.flatten(outputs))
+reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
 
 reconstruction_loss *= nx * ny
 kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
 vae_loss = K.mean(reconstruction_loss + kl_loss)
+
+
 vae.add_loss(vae_loss)
 vae.compile(optimizer='rmsprop')
 K.set_value(vae.optimizer.lr, learning_rate)
 K.set_value(vae.optimizer.decay, decay_rate)
 vae.summary()
-plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
+# plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
 # if args.weights:
 #     vae.load_weights(args.weights)
 # else:
 # train the autoencoder
-vae.fit({'encoder_input': x_train, 'psf_input1': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_input1': psf_test}, None))
+vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None))
 # vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
 # Save weights and models
-vae.save(DataDir+'models/cvae_model_cosmos.h5')
-vae.save_weights(DataDir+'models/cvae_weights_cosmos.h5')
-encoder.save(DataDir+'models/cvae_encoder_model_cosmos.h5')
-encoder.save_weights(DataDir+'models/cvae_encoder_weights_cosmos.h5')
-decoder1.save(DataDir+'models/cvae_decoder_model_cosmos.h5')
-decoder1.save_weights(DataDir+'models/cvae_decoder_weights_cosmos.h5')
+vae.save(DataDir+'models/cvae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+vae.save_weights(DataDir+'models/cvae_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+encoder.save(DataDir+'models/cvae_encoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+encoder.save_weights(DataDir+'models/cvae_encoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder1.save(DataDir+'models/cvae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder1.save_weights(DataDir+'models/cvae_decoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder2.save(DataDir+'models/cvae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 
 # -------------- Training and testing sets encoding decoding -----------------
 
 x_train_encoded = encoder.predict(x_train)
 x_train_encoded = K.cast_to_floatx(x_train_encoded)
 x_train_decoded = decoder1.predict(x_train_encoded[0])
+x_train_decoded_conv = decoder2.predict([x_train_decoded, psf_train])
 
 x_test_encoded = encoder.predict(x_test)
-x_test_encoded = K.cast_to_floatx(x_test_encoded[0])
-x_test_decoded = decoder1.predict(x_test_encoded)
+x_test_encoded = K.cast_to_floatx(x_test_encoded)
+x_test_decoded = decoder1.predict(x_test_encoded[0])
+x_test_decoded_conv = decoder2.predict([x_test_decoded, psf_test])
 
-np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'_5.txt', x_train_encoded[2])
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(n_train)+'_5.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'.txt', x_train_encoded[2])
+np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(n_test)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
 
-np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(n_test)+'_5.txt', x_test_encoded)
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(n_test)+'_5.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(n_test)+'.txt', x_test_encoded[2])
+np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
 
 # np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
 # ---------------------- GP fitting -------------------------------
+
 
 def gp_fit(weights, y_train):
     """

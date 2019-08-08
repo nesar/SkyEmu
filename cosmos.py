@@ -63,15 +63,15 @@ def fft_shift_psf(psf, translation):
 nx = 64
 ny = 64
 pixel_scale = 0.04
-n_train = 2**11
-n_test = 2**7
+n_train = 2**13
+n_test = 2**8
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')
 
 # Set filenames
-file_name_train = os.path.join('../Data/Cosmos/data', 'cosmos_real_train_'+str(n_train)+'.hdf5')
-file_name_test = os.path.join('../Data/Cosmos/data', 'cosmos_real_test_'+str(n_test)+'.hdf5')
+file_name_train = os.path.join('../Data/Cosmos/data', 'cosmos_real_trainingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5')
+file_name_test = os.path.join('../Data/Cosmos/data', 'cosmos_real_testingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5')
 
 # Set parameters labels
 params_labels = np.array(['flux_sersic', 'hlr_sersic', 'q_sersic', 'phi_sersic', 'flux_bulge', 'hlr_bulge', 'q_bulge', 'phi_bulge', 'flux_disk', 'hlr_disk', 'q_disk', 'phi_disk'])
@@ -86,8 +86,8 @@ catalog_param = galsim.COSMOSCatalog(use_real=False)
 training_set = np.zeros((n_train, nx, ny))
 testing_set = np.zeros((n_test, nx, ny))
 # Training and testing parametric images
-training_parametric = np.zeros((n_train, nx, ny))
-testing_parametric = np.zeros((n_test, nx, ny))
+# training_parametric = np.zeros((n_train, nx, ny))
+# testing_parametric = np.zeros((n_test, nx, ny))
 # Training and testing parameters
 training_params = np.zeros((n_train, n_params))
 testing_params = np.zeros((n_test, n_params))
@@ -108,10 +108,10 @@ for ind in range(n_train):
     psf = gal_real.original_psf
     # final = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
     final_real = galsim.Convolve([gal_real, psf], gsparams=big_fft_params)
-    final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
+    # final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
 
     training_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
-    training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    # training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     training_params[ind] = load_params(ind, catalog_param, n_params)
     training_psf[ind] = psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     # training_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
@@ -125,10 +125,10 @@ for ind in range(n_test):
     psf = gal_real.original_psf
     # final = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
     final_real = galsim.Convolve([gal_real, psf], gsparams=big_fft_params)
-    final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
+    # final_parametric = galsim.Convolve([gal_param, psf], gsparams=big_fft_params)
 
     testing_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
-    testing_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
+    # testing_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     testing_params[ind] = load_params(i, catalog_param, n_params)
     testing_psf[ind] = psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     # testing_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
@@ -165,14 +165,14 @@ if plot:
 print('Saving data sets ...')
 f = h5py.File(file_name_train, 'w')
 f.create_dataset('real galaxies', data=training_set)
-f.create_dataset('parametric galaxies', data=training_parametric)
+# f.create_dataset('parametric galaxies', data=training_parametric)
 f.create_dataset('parameters', data=training_params)
 f.create_dataset('psf', data=training_psf)
 f.close()
-# 
+
 f = h5py.File(file_name_test, 'w')
 f.create_dataset('real galaxies', data=testing_set)
-f.create_dataset('parametric galaxies', data=testing_parametric)
+# f.create_dataset('parametric galaxies', data=testing_parametric)
 f.create_dataset('parameters', data=testing_params)
 f.create_dataset('psf', data=testing_psf)
 f.close()

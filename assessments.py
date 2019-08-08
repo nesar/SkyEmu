@@ -147,7 +147,7 @@ def shear_estimation(true, predicted, psf):
     plt.xlabel('g2 value')
     plt.ylabel('Counts')
     plt.subplot(223)
-    plt.scatter(shear_true[:, 0], shear_pred[:, 0])
+    plt.scatter(shear_true[:, 0], shear_pred[:, 0], s=1)
     plt.xlabel('True g1')
     plt.ylabel('Predicted g1')
     plt.legend()
@@ -344,20 +344,20 @@ def main():
 
     # ------------------------ Parameters ---------------------------------------
     DataDir = '../Data/Cosmos/'
-    ntrain = 2048
-    ntest = 128
+    ntrain = 8192
+    ntest = 512
     nx = 64
     ny = 64
 
     # ------------------------ Load data and models -----------------------------
 
     # Load training and testing set
-    f = h5py.File(DataDir + 'data/cosmos_real_train_2048.hdf5', 'r')
+    f = h5py.File(DataDir + 'data/cosmos_real_trainingset_train_'+str(ntrain)+'_test_'+str(ntest)+'.hdf5', 'r')
     x_train = np.array(f['real galaxies'])
     y_train = np.array(f['parameters'])
     f.close()
 
-    f = h5py.File(DataDir + 'data/cosmos_real_test_128.hdf5', 'r')
+    f = h5py.File(DataDir + 'data/cosmos_real_testingset_train_'+str(ntrain)+'_test_'+str(ntest)+'.hdf5', 'r')
     x_test = np.array(f['real galaxies'])
     y_test = np.array(f['parameters'])
     f.close()
@@ -391,17 +391,17 @@ def main():
     # decoder = load_model(DataDir+'Galsim/cvae_decoder_model_galsim.h5')
     # x_test_decoded = np.zeros((ntest, nx, ny))
     # x_test_decoded = decoder.predict(x_test_encoded)
-    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'_5.txt'), (ntest, nx, ny))
-    x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'_5.txt')
+    x_test_decoded = np.reshape(np.loadtxt(DataDir+'/cvae_cosmos_decoded_xtest_'+str(ntest)+'_5.txt'), (ntest, nx, ny))
+    x_test_encoded = np.loadtxt(DataDir+'/cvae_cosmos_encoded_xtest_'+str(ntest)+'_5.txt')
 
     # Load reconstructed training set
-    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'_5.txt'), (ntrain, nx, ny))
-    x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'_5.txt')
+    x_train_decoded = np.reshape(np.loadtxt(DataDir+'/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'_5.txt'), (ntrain, nx, ny))
+    x_train_encoded = np.loadtxt(DataDir+'/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'_5.txt')
 
     # -------------------- Plotting routines --------------------------
 
     plot_results(x_train, x_train_decoded, x_test, x_test_decoded)
-    # mse, r2 = mse_r2(x_train, x_train_decoded)
-    # pixel_intensity(x_train, x_train_decoded)
-    # diff_g1, diff_g2 = shear_estimation(x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
-    # latent_space(x_train_encoded, x_test_encoded, y_train_sersic, y_train_bulge, train_sersic, train_bulge, y_test_sersic, y_test_bulge, test_sersic, test_bulge)
+    mse, r2 = mse_r2(x_train, x_train_decoded)
+    pixel_intensity(x_train, x_train_decoded)
+    diff_g1, diff_g2 = shear_estimation(x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
+    latent_space(x_train_encoded, x_test_encoded, y_train_sersic, y_train_bulge, train_sersic, train_bulge, y_test_sersic, y_test_bulge, test_sersic, test_bulge)
