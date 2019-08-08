@@ -9,6 +9,7 @@ from keras.models import Model
 from keras.datasets import mnist
 from keras.losses import mse, binary_crossentropy
 from keras.utils import plot_model
+from keras.regularizers import l1, l2, l1_l2
 from keras import backend as K
 import tensorflow as tf
 
@@ -207,7 +208,7 @@ batch = 32
 kernel_size = 4
 n_conv = 2
 filters = 16
-interm_dim1= 512
+interm_dim1 = 512
 interm_dim2 = 128
 latent_dim = 20
 epochs = 2
@@ -270,7 +271,7 @@ for i in range(n_conv):
     x1 = Conv2DTranspose(filters=filters, kernel_size=kernel_size, activation='relu', strides=2, padding='same')(x1)
     filters //= 2
 
-outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x1)
+outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output', activity_regularizer=l1_l2(l1=0.01, l2=0.01))(x1)
 
 # outputs1 = GaussianNoise(stddev=1)(x1)
 # outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
