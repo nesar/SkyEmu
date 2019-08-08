@@ -58,7 +58,6 @@ with open(dirIn + allfiles[fileID]) as f:
 ##########################################################################################################
 
 
-
 def rescale01(xmin, xmax, f):
     return (f - xmin) / (xmax - xmin)
 
@@ -91,8 +90,6 @@ ModelDir = params.ModelDir
 fileOut = params.fileOut
 
 # ----------------------------- i/o ------------------------------------------
-
-
 
 Trainfiles = np.loadtxt(DataDir + 'P' + str(num_para) + ClID + 'Cl_' + str(num_train) + '.txt')
 Testfiles = np.loadtxt(DataDir + 'P' + str(num_para) + ClID + 'Cl_' + str(num_test) + '.txt')
@@ -131,16 +128,12 @@ x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
 
 ################# ARCHITECTURE ###############################
 
-
-
 LoadModel = True
 if LoadModel:
     encoder = load_model(ModelDir + 'EncoderP' + str(num_para) + ClID + '_' + fileOut + '.hdf5')
     decoder = load_model(ModelDir + 'DecoderP' + str(num_para) + ClID + '_' + fileOut + '.hdf5')
     history = np.loadtxt(
         ModelDir + 'TrainingHistoryP' + str(num_para) + ClID + '_' + fileOut + '.txt')
-
-
 
 ##################################################33333
 
@@ -206,8 +199,6 @@ def GPfit(computedGP, para_array):
     x_decoded = decoder.predict(W_pred)
 
     return (normFactor * x_decoded[0]) + meanFactor
-
-
 
 ### Using pre-trained GPy model #######################
 

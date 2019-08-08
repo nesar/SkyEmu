@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import h5py
 import cmath
+from astropy.io import fits
 
 
 # Plotting routine
@@ -45,6 +46,9 @@ def load_params(index, catalog, n_params):
         params[3] = par_dic['sersicfit'][7]
     return params
 
+ def search_tng_params():
+ 	return 0
+
 
 def compute_translation(shape):
     K, L = shape
@@ -64,7 +68,7 @@ nx = 64
 ny = 64
 pixel_scale = 0.04
 n_train = 2**13
-n_test = 2**8
+n_test = 2**9
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')
@@ -76,6 +80,11 @@ file_name_test = os.path.join('../Data/Cosmos/data', 'cosmos_real_testingset_tra
 # Set parameters labels
 params_labels = np.array(['flux_sersic', 'hlr_sersic', 'q_sersic', 'phi_sersic', 'flux_bulge', 'hlr_bulge', 'q_bulge', 'phi_bulge', 'flux_disk', 'hlr_disk', 'q_disk', 'phi_disk'])
 n_params = params_labels.shape[0]
+
+# Load Alexie's parameters
+params = fits.getdata('../Data/Cosmos/data/lensing14.fits')
+# To modify with real tng physical params.
+tng_param_labels = np.array(['MAG_AUTO', 'FLUX_AUTO', 'FLUX_RADIUS', 'KRON_RADIUS'])
 
 # Load catalogs
 catalog_real = galsim.COSMOSCatalog()
@@ -94,7 +103,7 @@ testing_params = np.zeros((n_test, n_params))
 # Training and testing psfs
 training_psf = np.zeros((n_train, nx, ny))
 testing_psf = np.zeros((n_test, nx, ny))
-translation = compute_translation((nx, ny))
+# translation = compute_translation((nx, ny))
 
 # Modify GSParams
 big_fft_params = galsim.GSParams(maximum_fft_size=12300)

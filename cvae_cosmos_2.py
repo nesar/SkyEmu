@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from keras.layers import Dense, Input
+from keras.layers import Dense, Input, Dropout
 from keras.layers import Conv2D, Flatten, Lambda, GaussianNoise
 from keras.layers import Reshape, Conv2DTranspose
 from keras.models import Model
@@ -207,9 +207,11 @@ batch = 32
 kernel_size = 4
 n_conv = 2
 filters = 16
-interm_dim = 128
+interm_dim1= 512
+interm_dim2 = 128
 latent_dim = 20
 epochs = 2
+drop = 0.5
 
 epsilon_mean = 0.
 epsilon_std = 1e-4
@@ -234,7 +236,11 @@ shape = K.int_shape(x)
 
 # generate latent vector Q(z|X)
 x = Flatten()(x)
-x = Dense(interm_dim, activation='relu')(x)
+x = Dropout(drop)(x)
+x = Dense(interm_dim1, activation='relu')(x)
+x = Dropout(drop)(x)
+x = Dense(interm_dim2, activation='relu')(x)
+x = Dropout(drop)(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
@@ -252,8 +258,12 @@ plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
 # psf_inputs1 = Input(shape=input_shape, name='psf_input1')
 
-x1 = Dense(interm_dim, activation='relu')(latent_inputs1)
+x1 = Dense(interm_dim2, activation='relu')(latent_inputs1)
+x1 = Dropout(drop)(x1)
+x1 = Dense(interm_dim1, activation='relu')(x1)
+x1 = Dropout(drop)(x1)
 x1 = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x1)
+x1 = Dropout(drop)(x1)
 x1 = Reshape((shape[1], shape[2], shape[3]))(x1)
 
 for i in range(n_conv):
@@ -299,12 +309,11 @@ vae = Model([inputs, psf_inputs], outputs, name='vae')
 # else:
 reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
 
-reconstruction_loss *= nx * ny
+reconstruction_loss *= nx * ny * tf.math.reduce_mean(inputs)**-1
 kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
 vae_loss = K.mean(reconstruction_loss + kl_loss)
-
 
 vae.add_loss(vae_loss)
 vae.compile(optimizer='rmsprop')
@@ -343,11 +352,11 @@ x_test_decoded_conv = decoder2.predict([x_test_decoded, psf_test])
 
 np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'.txt', x_train_encoded[2])
 np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(n_test)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded_conv[:, :, :, 0], (x_train_decoded_conv.shape[0], nx*ny)))
 
 np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(n_test)+'.txt', x_test_encoded[2])
 np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded_conv[:, :, :, 0], (x_test_decoded_conv.shape[0], nx*ny)))
 
 # np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
 # ---------------------- GP fitting -------------------------------

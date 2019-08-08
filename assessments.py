@@ -219,9 +219,10 @@ def plot_results(x_train, x_train_decoded, x_test, x_test_decoded):
     plt.close()
 
 
-def latent_space(x_train_encoded, x_test_encoded, y_train_sersic, y_train_bulge, train_sersic, train_bulge, y_test_sersic, y_test_bulge, test_sersic, test_bulge):
+def latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge):
     latent_dim = x_train_encoded.shape[1]
-    params_dim = y_train_sersic.shape[1] + y_train_bulge.shape[1]
+    n_train, params_dim = y_train.shape
+    n_test = y_test.shape[0]
     PlotScatter = True
     if PlotScatter:
         for w1 in range(4):
@@ -229,26 +230,39 @@ def latent_space(x_train_encoded, x_test_encoded, y_train_sersic, y_train_bulge,
                 # display a 2D plot of latent space (just 2 dimensions)
                 if w1 == w2:
                     w2 += 1
-                i = np.random.randint(0, high=params_dim)
+                i = np.random.randint(0, high=4)
                 npar = np.copy(i)
-                if i < 4:
-                    y_train_ = y_train_sersic
-                    y_test_ = y_test_sersic
-                    x_train_encoded_ = x_train_encoded[train_sersic]
-                    x_test_encoded_ = x_test_encoded[test_sersic]
-                else:
-                    y_train_ = y_train_bulge
-                    y_test_ = y_test_bulge
-                    x_train_encoded_ = x_train_encoded[train_bulge]
-                    x_test_encoded_ = x_test_encoded[test_bulge]
+                # if i < 4:
+                #     y_train_ = y_train_sersic
+                #     y_test_ = y_test_sersic
+                #     x_train_encoded_ = x_train_encoded[train_sersic]
+                #     x_test_encoded_ = x_test_encoded[test_sersic]
+                # else:
+                #     y_train_ = y_train_bulge
+                #     y_test_ = y_test_bulge
+                #     x_train_encoded_ = x_train_encoded[train_bulge]
+                #     x_test_encoded_ = x_test_encoded[test_bulge]
 
-                    i -= 4
+                #     i -= 4
+                y_train_ = np.zeros(n_train)
+                y_test_ = np.zeros(n_test)
+                for l in range(n_train):
+                    if not(y_train[l, i]):
+                        y_train_[l] = y_train[l, i+4]
+                    else:
+                        y_train_[l] = y_train[l, i]
+                for l in range(n_test):
+                    if not(y_test[l, i]):
+                        y_test_[l] = y_test[l, i+4]
+                    else:
+                        y_test_[l] = y_test[l, i]
+
                 plt.figure(figsize=(6, 6))
                 # plt.scatter(x_train_encoded_[:, w1], x_train_encoded_[:, w2], c=y_train_[:, i]+1e-6, cmap='bone', norm=LogNorm(1e-6, y_train_[:, i].max()))
-                plt.scatter(x_train_encoded_[:, w1], x_train_encoded_[:, w2], c=y_train_[:, i], cmap='bone')
+                plt.scatter(x_train_encoded[:, w1], x_train_encoded[:, w2], c=y_train_.flatten(), cmap='bone')
                 plt.colorbar()
                 # plt.scatter(x_test_encoded_[:, w1], x_test_encoded_[:, w2], c=y_test_[:, i]+1e-6, cmap='Wistia', norm=LogNorm(1e-6, y_train_[:, i].max()))
-                plt.scatter(x_test_encoded_[:, w1], x_test_encoded_[:, w2], c=y_test_[:, i], cmap='Wistia')
+                plt.scatter(x_test_encoded[:, w1], x_test_encoded[:, w2], c=y_test_.flatten(), cmap='Wistia')
                 plt.colorbar()
                 plt.savefig('../Plots/Cosmos_plots/cosmos_cnn_vae_scatter_latent_'+str(w1)+'_vs_'+str(w2)+'_param_'+str(npar)+'.png')
                 # plt.show()
@@ -344,8 +358,8 @@ def main():
 
     # ------------------------ Parameters ---------------------------------------
     DataDir = '../Data/Cosmos/'
-    ntrain = 8192
-    ntest = 512
+    ntrain = 4096
+    ntest = 256
     nx = 64
     ny = 64
 
@@ -391,12 +405,12 @@ def main():
     # decoder = load_model(DataDir+'Galsim/cvae_decoder_model_galsim.h5')
     # x_test_decoded = np.zeros((ntest, nx, ny))
     # x_test_decoded = decoder.predict(x_test_encoded)
-    x_test_decoded = np.reshape(np.loadtxt(DataDir+'/cvae_cosmos_decoded_xtest_'+str(ntest)+'_5.txt'), (ntest, nx, ny))
-    x_test_encoded = np.loadtxt(DataDir+'/cvae_cosmos_encoded_xtest_'+str(ntest)+'_5.txt')
+    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'.txt')
 
     # Load reconstructed training set
-    x_train_decoded = np.reshape(np.loadtxt(DataDir+'/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'_5.txt'), (ntrain, nx, ny))
-    x_train_encoded = np.loadtxt(DataDir+'/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'_5.txt')
+    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    x_train_encoded = np.loadtxt(DataDir+'models/models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'.txt')
 
     # -------------------- Plotting routines --------------------------
 
@@ -404,4 +418,4 @@ def main():
     mse, r2 = mse_r2(x_train, x_train_decoded)
     pixel_intensity(x_train, x_train_decoded)
     diff_g1, diff_g2 = shear_estimation(x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
-    latent_space(x_train_encoded, x_test_encoded, y_train_sersic, y_train_bulge, train_sersic, train_bulge, y_test_sersic, y_test_bulge, test_sersic, test_bulge)
+    latent_space(x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
