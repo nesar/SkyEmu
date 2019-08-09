@@ -274,10 +274,10 @@ def latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sers
 
                 plt.figure(figsize=(6, 6))
                 # plt.scatter(x_train_encoded_[:, w1], x_train_encoded_[:, w2], c=y_train_[:, i]+1e-6, cmap='bone', norm=LogNorm(1e-6, y_train_[:, i].max()))
-                plt.scatter(x_train_encoded[:, w1], x_train_encoded[:, w2], c=y_train_.flatten(), cmap='bone')
+                plt.scatter(x_train_encoded[:, w1], x_train_encoded[:, w2], c=y_train_.flatten(), cmap='bone', norm=LogNorm())
                 plt.colorbar()
                 # plt.scatter(x_test_encoded_[:, w1], x_test_encoded_[:, w2], c=y_test_[:, i]+1e-6, cmap='Wistia', norm=LogNorm(1e-6, y_train_[:, i].max()))
-                plt.scatter(x_test_encoded[:, w1], x_test_encoded[:, w2], c=y_test_.flatten(), cmap='Wistia')
+                plt.scatter(x_test_encoded[:, w1], x_test_encoded[:, w2], c=y_test_.flatten(), cmap='Wistia', norm=LogNorm())
                 plt.colorbar()
                 plt.savefig(PlotDir+'cosmos_cnn_vae_scatter_latent_'+str(w1)+'_vs_'+str(w2)+'_param_'+str(npar)+'.png')
                 # plt.show()
@@ -370,12 +370,40 @@ def plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test):
     reducer = umap.UMAP()
     embedding_train = reducer.fit_transform(x_train_encoded)
     embedding_test = reducer.transform(x_test_encoded)
-    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 0].flatten(), cmap='bone')
+    plt.figure()
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 0].flatten(), cmap='bone', norm=LogNorm())
     plt.colorbar()
-    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 0].flatten(), cmap='Wistia')
+    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 0].flatten(), cmap='Wistia', norm=LogNorm())
     plt.colorbar()
     plt.tight_layout()
-    plt.savefig(PlotDir+'cosmos_umap.png', figsize=(20000, 20000), bbox_inches="tight")
+    plt.savefig(PlotDir+'cosmos_umap_flux.png', figsize=(20000, 20000), bbox_inches="tight")
+    plt.close()
+
+    plt.figure()
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 1].flatten(), cmap='bone', norm=LogNorm())
+    plt.colorbar()
+    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 1].flatten(), cmap='Wistia', norm=LogNorm())
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(PlotDir+'cosmos_umap_hlr.png', figsize=(20000, 20000), bbox_inches="tight")
+    plt.close()
+
+    plt.figure()
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 2].flatten(), cmap='bone', norm=LogNorm())
+    plt.colorbar()
+    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 2].flatten(), cmap='Wistia', norm=LogNorm())
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(PlotDir+'cosmos_umap_q.png', figsize=(20000, 20000), bbox_inches="tight")
+    plt.close()
+
+    plt.figure()
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 3].flatten(), cmap='bone', norm=LogNorm())
+    plt.colorbar()
+    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 3].flatten(), cmap='Wistia', norm=LogNorm())
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(PlotDir+'cosmos_umap_phi.png', figsize=(20000, 20000), bbox_inches="tight")
     plt.close()
 # ------------------------------------- MAIN -----------------------------------------
 
@@ -389,6 +417,8 @@ def main(args):
     ntest = 256
     nx = 64
     ny = 64
+
+    os.remove(PlotDir+'*.png')
 
     # ------------------------ Load data and models -----------------------------
 
@@ -449,8 +479,8 @@ def main(args):
     mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded_psf)
     print('Plot pixel intensity ...')
     pixel_intensity(PlotDir, x_train, x_train_decoded_psf)
-    # print('Plot shear estimation ...')
-    # diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
+    print('Plot shear estimation ...')
+    diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
     # print('Plot latent space ...')
     # latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
     print('Plot umap')

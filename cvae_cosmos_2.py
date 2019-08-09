@@ -137,8 +137,8 @@ def plot_results(models,
 # network parameters
 DataDir = '../Data/Cosmos/'
 
-n_train = 4096
-n_test = 256
+n_train = 16384
+n_test = 512
 nx = 64
 ny = 64
 
@@ -206,18 +206,20 @@ psf_test = psf_test.astype('float32')
 input_shape = (nx, ny, 1)
 batch = 32
 kernel_size = 4
-n_conv = 2
-filters = 16
-interm_dim1 = 512
-interm_dim2 = 128
-latent_dim = 20
-epochs = 200
-drop = 0.5
+n_conv = 3
+filters = 8
+interm_dim1 = 2048
+interm_dim2 = 512
+interm_dim3 = 256
+interm_dim4 = 128
+latent_dim = 32
+epochs = 5000
+drop = 0.1
 l1_ = 0.01
 l2_ = 0.01
 
 epsilon_mean = 0.
-epsilon_std = 1e-5
+epsilon_std = 1e-6
 
 learning_rate = 1e-5
 decay_rate = 1e-1
@@ -240,8 +242,10 @@ shape = K.int_shape(x)
 # generate latent vector Q(z|X)
 x = Flatten()(x)
 x = Dense(interm_dim1, activation='relu')(x)
-x = Dropout(drop)(x)
 x = Dense(interm_dim2, activation='relu')(x)
+x = Dropout(drop)(x)
+x = Dense(interm_dim3, activation='relu')(x)
+x = Dense(interm_dim4, activation='relu')(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
@@ -259,8 +263,10 @@ plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
 latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
 # psf_inputs1 = Input(shape=input_shape, name='psf_input1')
 
-x1 = Dense(interm_dim2, activation='relu')(latent_inputs1)
+x1 = Dense(interm_dim4, activation='relu')(latent_inputs1)
+x1 = Dense(interm_dim3, activation='relu')(x1)
 x1 = Dropout(drop)(x1)
+x1 = Dense(interm_dim2, activation='relu')(x1)
 x1 = Dense(interm_dim1, activation='relu')(x1)
 x1 = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x1)
 x1 = Reshape((shape[1], shape[2], shape[3]))(x1)
@@ -269,7 +275,7 @@ for i in range(n_conv):
     x1 = Conv2DTranspose(filters=filters, kernel_size=kernel_size, activation='relu', strides=2, padding='same')(x1)
     filters //= 2
 
-outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output', activity_regularizer=l1_l2(l1=l1_, l2=l2_))(x1)
+outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x1)
 
 # outputs1 = GaussianNoise(stddev=1)(x1)
 # outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)

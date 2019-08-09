@@ -46,9 +46,6 @@ def load_params(index, catalog, n_params):
         params[3] = par_dic['sersicfit'][7]
     return params
 
- def search_tng_params():
- 	return 0
-
 
 def compute_translation(shape):
     K, L = shape
@@ -67,8 +64,8 @@ def fft_shift_psf(psf, translation):
 nx = 64
 ny = 64
 pixel_scale = 0.04
-n_train = 2**13
-n_test = 2**9
+n_train = 2**16
+n_test = 2**14
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')
