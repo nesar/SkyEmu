@@ -253,8 +253,8 @@ estimator = tf.estimator.Estimator(
       config=tf.estimator.RunConfig(model_dir=model_dir))
 
 def input_fn_train():
-    code = tf.data.Dataset.from_tensor_slices(x_train_encoded)
-    cond = tf.data.Dataset.from_tensor_slices(y_train)
+    code = tf.data.Dataset.from_tensor_slices(x_train_encoded.astype('float32'))
+    cond = tf.data.Dataset.from_tensor_slices(y_train.astype('float32'))
     dset = tf.data.Dataset.zip((code, cond))
     dset = dset.repeat().shuffle(buffer_size=1000).batch(batch_size).prefetch(16)
     iterator = dset.make_one_shot_iterator()
@@ -265,7 +265,7 @@ estimator.train(input_fn=input_fn_train, max_steps=30000)
 print('GP pediction ...')
 
 def input_fn_test():
-    dset = tf.data.Dataset.from_tensor_slices(y_test)
+    dset = tf.data.Dataset.from_tensor_slices(y_test.astype('float32'))
     iterator = dset.make_one_shot_iterator()
     batch_cond = iterator.get_next()
     return batch_cond
