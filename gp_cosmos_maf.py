@@ -239,11 +239,14 @@ outputs2 = Lambda(psf_convolve, output_shape=input_shape)([dec_inputs2, psf_inpu
 decoder2 = Model([dec_inputs2, psf_inputs], outputs2)
 
 print('Flow training ...')
+max_steps=30000
 params = { 'flow_fn': make_flow_fn(latent_size=32,
                                      maf_layers=4,
                                      maf_size=256,
                                      shift_only=True,
-                                     activation=tf.nn.leaky_relu)}
+                                     activation=tf.nn.leaky_relu),
+            'learning_rate': 0.0002,
+            'max_steps': max_steps}
 model_dir='model_dir/flow'
 batch_size=32
 # Build estimator
@@ -261,7 +264,7 @@ def input_fn_train():
     batch_code, batch_cond = iterator.get_next()
     return {'x': batch_code, 'y': batch_cond}
 
-estimator.train(input_fn=input_fn_train, max_steps=30000)
+estimator.train(input_fn=input_fn_train, max_steps=max_steps)
 print('GP pediction ...')
 
 def input_fn_test():
