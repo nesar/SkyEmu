@@ -9,6 +9,7 @@ import  tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
 import tensorflow_hub as hub
+from  flow import masked_autoregressive_conditional_template
 
 
 # Convolution with PSF function
