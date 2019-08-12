@@ -406,13 +406,14 @@ def gp_predict(model, params):
     return predic[0]
 
 
-# gpmodel = gp_fit(x_train_encoded[0], y_train)
+print('GP training ...')
+gpmodel = gp_fit(x_train_encoded[0], y_train)
+x_test_gp_encoded = gp_predict(gpmodel, y_test)
+np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
-# x_test_encoded = gp_predict(gpmodel, y_test)
+x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
+np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
 
-# np.savetxt(DataDir + 'x_test_encoded_64_5.txt', x_test_encoded)
-
-# x_test_decoded = decoder.predict(x_test_encoded)
 
 # image_size = nx
 # # -------------------- Plotting routines --------------------------

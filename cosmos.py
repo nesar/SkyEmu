@@ -24,26 +24,14 @@ def plot_gal(dataset_real, dataset_param, psf):
     return psfplot
 
 
-def load_params(index, catalog, n_params):
+def load_params(index, catalog, params_data, params_labels):
+    n_params = params_labels.shape[0]
     par_dic = catalog.getParametricRecord(index)
     params = np.zeros(n_params)
-    if par_dic['use_bulgefit']:
-        # Fill bulge profile params
-        params[4] = par_dic['flux'][1]
-        params[5] = par_dic['hlr'][1]
-        params[6] = par_dic['bulgefit'][11]
-        params[7] = par_dic['bulgefit'][15]
-        # Fill disk profile params
-        params[8] = par_dic['flux'][2]
-        params[9] = par_dic['hlr'][2]
-        params[10] = par_dic['bulgefit'][3]
-        params[11] = par_dic['bulgefit'][7]
-    elif par_dic['viable_sersic']:
-        # Fill sersic profiles params
-        params[0] = par_dic['flux'][0]
-        params[1] = par_dic['hlr'][0]
-        params[2] = par_dic['sersicfit'][3]
-        params[3] = par_dic['sersicfit'][7]
+    ind = np.where(params_data[:]['IDENT'] == par_dic['IDENT'])[0][0]
+    for i in range(n_params):
+        params[i] = params_data[ind][params_labels[i]]
+    # print(str(params[0])+'-----'+str(par_dic['mag_auto']))
     return params
 
 
@@ -63,9 +51,9 @@ def fft_shift_psf(psf, translation):
 # Set dimensions
 nx = 64
 ny = 64
-pixel_scale = 0.04
-n_train = 2**16
-n_test = 2**14
+pixel_scale = 0.03
+n_train = 65000
+n_test = 16000
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')
@@ -75,13 +63,10 @@ file_name_train = os.path.join('../Data/Cosmos/data', 'cosmos_real_trainingset_t
 file_name_test = os.path.join('../Data/Cosmos/data', 'cosmos_real_testingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5')
 
 # Set parameters labels
-params_labels = np.array(['flux_sersic', 'hlr_sersic', 'q_sersic', 'phi_sersic', 'flux_bulge', 'hlr_bulge', 'q_bulge', 'phi_bulge', 'flux_disk', 'hlr_disk', 'q_disk', 'phi_disk'])
+params_data = fits.getdata('../Data/Cosmos/data/lensing14.fits')
+params_labels = np.array(['MAG_AUTO', 'FLUX_AUTO', 'FLUX_RADIUS', 'KEVIN_MSTAR', 'MNUV', 'MU', 'MB', 'MV', 'MG', 'MR', 'MI', 'MJ', 'MK', 'MNUV_MR', 'SFR_MED', 'SSFR_MED'])
 n_params = params_labels.shape[0]
 
-# Load Alexie's parameters
-params = fits.getdata('../Data/Cosmos/data/lensing14.fits')
-# To modify with real tng physical params.
-tng_param_labels = np.array(['MAG_AUTO', 'FLUX_AUTO', 'FLUX_RADIUS', 'KRON_RADIUS'])
 
 # Load catalogs
 catalog_real = galsim.COSMOSCatalog()
@@ -109,6 +94,7 @@ big_fft_params = galsim.GSParams(maximum_fft_size=12300)
 # Generating training set and params
 print('Loading training set ...')
 for ind in range(n_train):
+    print(ind)
     gal_real = catalog_real.makeGalaxy(ind, noise_pad_size=nx * pixel_scale)
     gal_param = catalog_param.makeGalaxy(ind, noise_pad_size=ny * pixel_scale)
     psf = gal_real.original_psf
@@ -118,7 +104,7 @@ for ind in range(n_train):
 
     training_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     # training_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
-    training_params[ind] = load_params(ind, catalog_param, n_params)
+    training_params[ind] = load_params(ind, catalog_param, params_data, params_labels)
     training_psf[ind] = psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     # training_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
 
@@ -126,6 +112,7 @@ for ind in range(n_train):
 print('Loading testing set ...')
 for ind in range(n_test):
     i = ind + n_train
+    print(ind)
     gal_real = catalog_real.makeGalaxy(i, noise_pad_size=nx * pixel_scale)
     gal_param = catalog_param.makeGalaxy(i, noise_pad_size=ny * pixel_scale)
     psf = gal_real.original_psf
@@ -135,7 +122,7 @@ for ind in range(n_test):
 
     testing_set[ind] = final_real.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     # testing_parametric[ind] = final_parametric.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
-    testing_params[ind] = load_params(i, catalog_param, n_params)
+    testing_params[ind] = load_params(i, catalog_param, params_data, params_labels)
     testing_psf[ind] = psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array
     # testing_psf[ind] = fft_shift_psf(psf.drawImage(nx=nx, ny=ny, scale=pixel_scale).array, translation)
 
@@ -148,7 +135,7 @@ f, a = plt.subplots(4, 4, sharex=True, sharey=True)
 plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
 plt.rcParams.update({'font.size': 4})
 
-plot = False
+plot = True
 if plot:
     for i in range(4):
         for j in range(i+1):

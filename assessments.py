@@ -405,6 +405,53 @@ def plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test):
     plt.tight_layout()
     plt.savefig(PlotDir+'cosmos_umap_phi.png', figsize=(20000, 20000), bbox_inches="tight")
     plt.close()
+
+
+def plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_psf, x_test_gp_decoded):
+    x_test_plt = rescale(x_test[0])
+    x_test_decoded_plt = rescale(x_test_decoded_psf[0])
+    x_test_decoded_gp_plt = rescale(x_test_gp_decoded[0])
+
+    for i in range(10):
+        x_test_plt = np.concatenate((x_test_plt, rescale(x_test[i+1])), axis=1)
+        x_test_decoded_plt = np.concatenate((x_test_decoded_plt, rescale(x_test_decoded_psf[i+1])), axis=1)
+        x_test_decoded_gp_plt = np.concatenate((x_test_decoded_gp_plt, rescale(x_test_gp_decoded[i+1])), axis=1)
+
+    plt.figure()
+    plt.subplot(311)
+    plt.imshow(x_test_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(312)
+    plt.imshow(x_test_decoded_plt, cmap='gray')
+    plt.axis('off')
+    plt.subplot(313)
+    plt.imshow(x_test_decoded_gp_plt, cmap='gray')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(PlotDir+'cosmos_testing_set_images_gp.png')
+    plt.close()
+
+    counts_true, bins = np.histogram(x_test_encoded.flatten(), bins=100)
+    counts_pred, bins = np.histogram(x_test_gp_encoded.flatten(), bins=bins)
+
+    plt.figure()
+    plt.subplot(121)
+    plt.semilogy(bins[:-1], counts_true, 's-', label='VAE encoded')
+    plt.semilogy(bins[:-1], counts_pred, 's-', label='GP encoded')
+    plt.legend()
+    plt.xlabel('Latent space variable value')
+    plt.ylabel('Counts')
+    # plt.show()
+    plt.subplot(122)
+    plt.scatter(x_test_encoded.flatten(), x_test_gp_encoded.flatten(), s=1)
+    plt.plot(np.linspace(np.min(x_test_encoded.flatten()), np.max(x_test_encoded.flatten())), np.linspace(np.min(x_test_encoded.flatten()), np.max(x_test_encoded.flatten())), 'r')
+    plt.xlabel('VAE latent space variable value')
+    plt.ylabel('GP latent space variable value')
+    plt.tight_layout()
+    plt.savefig(PlotDir+'cosmos_gp_encoded_vae_encoded_testing_set.png')
+    plt.close()
+
+
 # ------------------------------------- MAIN -----------------------------------------
 
 
@@ -465,6 +512,8 @@ def main(args):
     x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'.txt')
+    x_test_gp_encoded = np.loadtxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt')
+    x_test_gp_decoded = np.reshape(np.loadtxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt'), (ntest, nx, ny))
 
     # Load reconstructed training set
     x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
@@ -478,13 +527,15 @@ def main(args):
     print('Plot mse/r2 ...')
     mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded_psf)
     print('Plot pixel intensity ...')
-    pixel_intensity(PlotDir, x_train, x_train_decoded_psf)
+    pixel_intensity(PlotDir, x_test, x_test_decoded_psf)
     print('Plot shear estimation ...')
     diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
     # print('Plot latent space ...')
     # latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
-    print('Plot umap')
+    print('Plot umap ...')
     plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test)
+    print('Plot GP ...')
+    plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_psf, x_test_gp_decoded)
 
 
 if __name__ == "__main__":
