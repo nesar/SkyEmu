@@ -13,6 +13,7 @@ from keras.regularizers import l1, l2, l1_l2
 from keras import backend as K
 import tensorflow as tf
 from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.layers.merge import concatenate as concat
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,6 +24,11 @@ import GPy
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+
+# -----------------------------------------------------------------------------------
+# Conditional version of cvae_cosmos_2.py
+# -----------------------------------------------------------------------------------
 
 
 # Convolution with PSF function
@@ -191,6 +197,8 @@ psf_test = psf_test.astype('float32')
 
 # network parameters
 input_shape = (nx, ny, 1)
+
+
 batch = 32
 kernel_size = 4
 n_conv = 2
@@ -214,7 +222,8 @@ decay_rate = 1e-1
 # VAE model = encoder + decoder
 # build encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
-x = inputs
+params = Input(shape=(y_train.shape[1],))
+x = concat([inputs, params])
 for i in range(n_conv):
     filters *= 2
     x = Conv2D(filters=filters,
@@ -239,15 +248,16 @@ z_log_var = Dense(latent_dim, name='z_log_var')(x)
 # use reparameterization trick to push the sampling out as input
 # note that "output_shape" isn't necessary with the TensorFlow backend
 z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
+zc = concat([z, params])
 
 # instantiate encoder model
-encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
+encoder = Model([inputs, params], [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
 plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
 
 # DECODER
 
-latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
+latent_inputs1 = Input(shape=zc.shape, name='z_sampling')
 # psf_inputs1 = Input(shape=input_shape, name='psf_input1')
 
 x1 = Dense(interm_dim4, activation='relu')(latent_inputs1)
@@ -283,7 +293,7 @@ decoder2.summary()
 
 # instantiate VAE model
 outputs = decoder2([decoder1(encoder(inputs)[2]), psf_inputs])
-vae = Model([inputs, psf_inputs], outputs, name='vae')
+vae = Model([[inputs, params], psf_inputs], outputs, name='vae')
 
 ####### main function #######
 # parser = argparse.ArgumentParser()
