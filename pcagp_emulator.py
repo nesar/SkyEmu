@@ -15,10 +15,13 @@ import h5py
 import matplotlib.pyplot as plt
 import GPy
 from gengal import GenGalIm
+from matplotlib.colors import LogNorm
+import galsim
 import os
+import umap
 
 
-def pca_reduction(X, ncomp=20):
+def pca_reduction(X, y_train, ncomp=20):
     """
     Learn the PCA subspace from data X.
 
@@ -37,8 +40,8 @@ def pca_reduction(X, ncomp=20):
     weights = pca.fit_transform(X)
     basis = pca.components_
 
-    # # Plot cumsum(explained_variance) versus component
-    # plt.semilogy(pca.explained_variance_ratio_*100, 's')
+    # Plot cumsum(explained_variance) versus component
+    # plt.semilogy(np.cumsum(pca.explained_variance_ratio_*100), 's')
     # plt.ylabel('Explained Variance Ratio (%)', size=20)
     # plt.xticks(size=20)
     # plt.xlabel('Component', size=20)
@@ -50,44 +53,70 @@ def pca_reduction(X, ncomp=20):
     # pickle.dump(pca, '/../Data/GPmodel/pca_'+str(ncomp))
 
     # Some plots on PCA
-    # plot_pca(basis, weights)
+    plot_pca(basis, weights, y_train)
 
     return pca, weights
 
 
-def plot_pca(basis, weights):
+def rescale_im(img):
+    """
+    Rescale an image between 0 and 1 to plot.
+    """
+    return (img - np.min(img)) / np.max(img - np.min(img))
+
+
+def plot_pca(basis, weights, y):
     """
     Makes some plots of basis and weights from PCA.
     Input :
     - basis : 2-D basis of the subspace (orthogonal vectors), (ncomp * imsize)
     - weights : 2-D weights i.e. projection of the training set X onto the subspace spanned by the basis (nsamp * ncomp)
     """
-    file_name = '../Data/lhc_512_5.txt'
-    params = np.loadtxt(file_name)
+    # file_name = '../Data/Galsim/lhc_512_5.txt'
+    # params = np.loadtxt(file_name)
+    params = y
 
-    ncomp, imsize = basis.shape
-    npix = int(np.sqrt(imsize))
-    ncol = int(ncomp//2)
-    nsamp, _ = weights.shape
+    # ncomp, imsize = basis.shape
+    # npix = int(np.sqrt(imsize))
+    # basis = np.array(np.reshape(basis, (ncomp, npix, npix)))
+    # ncol = int(ncomp//2)
+    # nsamp, _ = weights.shape
 
-    # Shows the basis images
-    for i in range(ncomp):
-        plt.subplot(2, ncol, i+1)
-        plt.imshow(basis[i].reshape((npix, npix)))
+    # basis_plot = rescale_im(basis[0])
+    # for i in range(ncol-1):
+    #     basis_plot = np.concatenate((basis_plot, rescale_im(basis[i+1])), axis=1)
+    # basis_plot_ = rescale_im(basis[ncol])
+    # for i in range(ncol-1):
+    #     basis_plot_ = np.concatenate((basis_plot_, rescale_im(basis[ncol+i+1])), axis=1)
+    # basis_plot = np.concatenate((basis_plot, basis_plot_), axis=0)
+    # # Shows the basis images
+    # plt.imshow(basis_plot, cmap='gray')
+    # plt.axis('off')
+    # plt.show()
+
+    # parameter number (0: flux, 1: radius, 2: g1 shear, 3: g2 shear, 4: psf fwhm)
+    par = 2
+    # weight number (x-axis) 0 -> ncomp-1
+    w1 = 2
+    w2 = 3
+    plt.scatter(weights[:, w1], weights[:, w2], c=params[:, par])
+    plt.ylabel('Weight dimension '+str(w2+1), size=15)
+    plt.xlabel('Weight dimension'+str(w1+1), size=15)
+    plt.colorbar()
     plt.show()
 
-    # Scatter plots
-    for i in range(ncomp):
-        # parameter number (0: flux, 1: radius, 2: g1 shear, 3: g2 shear, 4: psf fwhm)
-        par = 3
-        # weight number (x-axis) 0 -> ncomp-1
-        w = 11
-        plt.subplot(2, ncol, i+1)
-        plt.scatter(weights[:, w], weights[:, i], s=1, c=params[:, par])
-        plt.ylabel('Weight '+str(i+1), size=15)
-        plt.xlabel('Weight '+str(w+1), size=15)
-        plt.colorbar()
+    reducer = umap.UMAP()
+    embedding_train = reducer.fit_transform(weights)
+    # embedding_test = reducer.transform(x_test_encoded)
+    plt.figure()
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=params[:, par].flatten(), cmap='bone', norm=LogNorm())
+    # plt.colorbar()
+    # plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 0].flatten(), cmap='Wistia', norm=LogNorm())
+    plt.colorbar()
+    plt.tight_layout()
     plt.show()
+    # plt.savefig(PlotDir+'cosmos_umap_flux.png', figsize=(20000, 20000), bbox_inches="tight")
+    # plt.close()
 
 
 def gp_fit(weights, params, task):
@@ -118,6 +147,7 @@ def gp_fit(weights, params, task):
     nparams = params.shape[1]
     ntrain = weights.shape[1]
     model.save_model('../Data/GPmodel/'+task+'gpfit_'+str(ntrain)+'_'+str(nparams), compress=True, save_data=True)
+    print('end GP training ...')
     return model, tmean, tmult
 
 
@@ -238,15 +268,106 @@ def perform_pca_gp(latent_dim, task, filename_train_gal, filename_train_par, fil
     return np.median(mse)
 
 
-def main(n):
-    n_train = 2048
-    n_test = 128
+def shear_estimation(PlotDir, true, predicted):
+    """
+    Using galsim.hsm.EstimateShear(gal_img, psf) : Estimate galaxy shear, correcting for the conv. by psf.
+    """
+    big_run_params = galsim.hsm.HSMParams(max_mom2_iter=40000)
+    n_imgs = true.shape[0]
+
+    shear_true = np.zeros((n_imgs, 2))
+    shear_pred = np.zeros((n_imgs, 2))
+
+    for i in range(n_imgs):
+        # shape_true = galsim.hsm.EstimateShear(galsim.Image(true[i]), galsim.Image(psf[i])).observed_shape
+        # shape_pred = galsim.hsm.EstimateShear(galsim.Image(predicted[i]), galsim.Image(psf[i])).observed_shape
+        print(i)
+        if i == 280:
+            i += 1
+
+        psf = galsim.Gaussian(fwhm=0.2)
+
+        shape_true = galsim.hsm.EstimateShear(galsim.Image(true[i]), psf.drawImage(nx=32, ny=32, scale=0.2), hsmparams=big_run_params).observed_shape
+        shape_pred = galsim.hsm.EstimateShear(galsim.Image(predicted[i]), psf.drawImage(nx=32, ny=32, scale=0.2), hsmparams=big_run_params).observed_shape
+
+        shear_true[i] = np.array([shape_true.g1, shape_true.g2])
+        shear_pred[i] = np.array([shape_pred.g1, shape_pred.g2])
+
+    countsg1_true, bins1 = np.histogram(shear_true[:, 0], bins=25)
+    countsg1_pred, bins1 = np.histogram(shear_pred[:, 0], bins=bins1)
+    countsg2_true, bins2 = np.histogram(shear_true[:, 1], bins=25)
+    countsg2_pred, bins2 = np.histogram(shear_pred[:, 1], bins=bins2)
+    counts_true, bins3 = np.histogram(shear_true[:, 0]**2 + shear_true[:, 1]**2, bins=25)
+    counts_pred, bins3 = np.histogram(shear_pred[:, 0]**2 + shear_pred[:, 1]**2, bins=bins3)
+
+    plt.figure('Shear estimation')
+    plt.subplot(221)
+    plt.semilogy(bins1[:-1], countsg1_true, 's--', label='True g1')
+    plt.semilogy(bins1[:-1], countsg1_pred, 's--', label='Predicted g1')
+    plt.legend()
+    plt.xlabel('g1 value')
+    plt.ylabel('Counts')
+    plt.subplot(222)
+    plt.semilogy(bins2[:-1], countsg2_true, 's--', label='True g2')
+    plt.semilogy(bins2[:-1], countsg2_pred, 's--', label='Predicted g2')
+    plt.legend()
+    plt.xlabel('g2 value')
+    plt.ylabel('Counts')
+    plt.subplot(223)
+    plt.scatter(shear_true[:, 0], shear_pred[:, 0], s=1)
+    plt.xlabel('True g1')
+    plt.ylabel('Predicted g1')
+    plt.legend()
+    plt.subplot(224)
+    # diff_module = abs((shear_true[:, 0]**2 + shear_true[:, 1]**2) - (shear_pred[:, 0]**2 + shear_pred[:, 1]**2)) * ((shear_true[:, 0]**2 + shear_true[:, 1]**2) **(-1)) * 100
+    # plt.plot(np.sort(diff_module), 's--', label='g1$^2$ + g2$^2$')
+    # plt.plot(np.sort(diff_g1), 's--', label='g1')
+    # plt.plot(np.sort(diff_g2), 's--', label='g2')
+    # plt.xlabel('g1$^2$ + g2$^2$')
+    # plt.ylabel('Error ($\%$)')
+    plt.scatter(shear_true[:, 1], shear_pred[:, 1], s=1)
+    plt.xlabel('True g2')
+    plt.ylabel('Predicted g2')
+    # plt.legend()
+    plt.tight_layout()
+    plt.savefig(PlotDir+'pcagp_shear_estimation.png')
+    plt.close()
+
+
+def pixel_intensity(PlotDir, true, predicted):
+    """
+    Plots the distribution of pixel intensities for the validation set (or any set made of real/input image set) and the reconstructed/predicted data set.
+    """
+    counts_true, bins = np.histogram(true.flatten(), bins=100)
+    counts_pred, bins = np.histogram(predicted.flatten(), bins=bins)
+
+    plt.figure('Pixel flux value distribution')
+    plt.subplot(121)
+    plt.semilogy(bins[:-1], counts_true, 's-', label='True')
+    plt.semilogy(bins[:-1], counts_pred, 's-', label='Predicted')
+    plt.legend()
+    plt.xlabel('Pixel intensity')
+    plt.ylabel('Counts')
+    # plt.show()
+    plt.subplot(122)
+    plt.scatter(true.flatten(), predicted.flatten(), s=1)
+    plt.plot(np.linspace(0, 0.175), np.linspace(0, 0.175), 'r')
+    plt.xlabel('True pixel intensity')
+    plt.ylabel('Predicted pixel intensity')
+    plt.tight_layout()
+    plt.savefig(PlotDir+'pca_pixels_intensity.png')
+    plt.close()
+
+
+def main():
+    n_train = 4096
+    n_test = 256
     nx = 64
     ny = 64
 
     # ------------------------------ LOAD DATA ----------------------------------
     # Load training set images and rescale fluxes
-    path = '../Data/output_cosmos/cosmos_real_train_'+str(n_train)+'.hdf5'
+    path = '../Data/Cosmos/data/cosmos_real_trainingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5'
     f = h5py.File(path, 'r')
     x_train = np.array(f['real galaxies'])
     xmin = np.min(x_train)
@@ -255,15 +376,15 @@ def main(n):
     x_train = np.reshape(x_train, (n_train, nx*ny))
 
     # Load testing set parametric images
-    x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
-    x_train_parametric = np.reshape(x_train_parametric, (n_train, nx*ny))
+    # x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
+    # x_train_parametric = np.reshape(x_train_parametric, (n_train, nx*ny))
 
     # Load training set parameters and rescale
     y_train = np.array(f['parameters'])
     f.close()
 
     # Load testing set and rescale fluxes
-    path = '../Data/output_cosmos/cosmos_real_test_'+str(n_test)+'.hdf5'
+    path = '../Data/Cosmos/data/cosmos_real_testingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5'
     f = h5py.File(path, 'r')
     x_test = np.array(f['real galaxies'])
     x_test = (x_test - xmin) / xmax
@@ -273,35 +394,92 @@ def main(n):
     y_test = np.array(f['parameters'])
 
     # Load testing set parametric images
-    x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
-    x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
+    # x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
+    # x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
     f.close()
 
     # ----------------------- PERFORM PCA+GP TRAINING ---------------------------
     # Perform PCA
-    pca, W = pca_reduction(x_train, ncomp=25)
+    pca, W = pca_reduction(x_train, y_train, ncomp=20)
     # GP learning
-    gp, tmean, tmult = gp_fit(W, y_train, 'cosmos')
+    # gp, tmean, tmult = gp_fit(W, y_train[:, :4], 'cosmos')
 
     # Rescale y_test
-    y_test = (y_test - tmean) * tmult**-1
-    y_train = (y_train - tmean) * tmult**-1
+    # y_test[:, :4] = (y_test[:, :4] - tmean) * tmult**-1
+    # y_train[:, :4] = (y_train[:, :4] - tmean) * tmult**-1
 
     # ----------------------- EMULATION -----------------------------------------
     # Emulate
-    x_test_decoded = emulator(pca, gp, y_test)
-    x_train_decoded = emulator(pca, gp, y_train)
+    # x_test_gp_decoded = np.reshape(emulator(pca, gp, y_test[:, :4]), (n_test, nx, ny))
+    # x_train_gp_decoded = emulator(pca, gp, y_train[:, :4])
 
     # Generate decoded training set
-    x_train_decoded_pca = pca.inverse_transform(W)
+    # x_train_decoded_pca = pca.inverse_transform(W)
+
+    x_test_decoded = np.reshape(pca.inverse_transform(pca.transform(x_test)), (n_test, nx, ny))
+
+    x_test = np.reshape(x_test, (n_test, nx, ny))
+
+    # print('Shear estimation ...')
+    # shear_estimation('../Plots/Cosmos_plots/', x_test, x_test_decoded)
+
+    # print('Pixel intensity ...')
+    # pixel_intensity('../Plots/Cosmos_plots/', x_test, x_test_decoded)
+
+    # print('Plotting ...')
+    # plt.figure()
+    # orig_plots = rescale_im(x_test[0])
+    # for i in range(9):
+    #     orig_plots = np.concatenate((orig_plots, rescale_im(x_test[i+2])), axis=1)
+
+    # for i in range(1):
+    #     orig_plots_ = rescale_im(x_test[10*(i+1)+2])
+    #     for j in range(9):
+    #         orig_plots_ = np.concatenate((orig_plots_, rescale_im(x_test[10*(i+1)+2+j])), axis=1)
+    #     orig_plots = np.concatenate((orig_plots, orig_plots_), axis=0)
+
+    # plt.imshow(orig_plots)
+    # plt.axis('off')
+    # # plt.show()
+
+    # plt.figure()
+    # rec_plots = rescale_im(x_test_decoded[0])
+    # for i in range(9):
+    #     rec_plots = np.concatenate((rec_plots, rescale_im(x_test_decoded[i+2])), axis=1)
+
+    # for i in range(1):
+    #     rec_plots_ = rescale_im(x_test_decoded[10*(i+1)+2])
+    #     for j in range(9):
+    #         rec_plots_ = np.concatenate((rec_plots_, rescale_im(x_test_decoded[10*(i+1)+2+j])), axis=1)
+    #     rec_plots = np.concatenate((rec_plots, rec_plots_), axis=0)
+
+    # plt.imshow(rec_plots)
+    # plt.axis('off')
+    # # plt.show()
+
+    # x_test_decoded_noise = x_test_decoded + 4e-4*np.random.randn(x_test_decoded.shape[0], x_test_decoded.shape[1], x_test_decoded.shape[2])
+
+    # plt.figure()
+    # rec_plots = rescale_im(x_test_decoded_noise[0])
+    # for i in range(9):
+    #     rec_plots = np.concatenate((rec_plots, rescale_im(x_test_decoded_noise[i+2])), axis=1)
+
+    # for i in range(1):
+    #     rec_plots_ = rescale_im(x_test_decoded_noise[10*(i+1)+2])
+    #     for j in range(9):
+    #         rec_plots_ = np.concatenate((rec_plots_, rescale_im(x_test_decoded_noise[10*(i+1)+2+j])), axis=1)
+    #     rec_plots = np.concatenate((rec_plots, rec_plots_), axis=0)
+    # plt.imshow(rec_plots)
+    # plt.axis('off')
+    # plt.show()
 
     # GalSim images simulation
-    # Initialize bunch array
-    # x_test = np.zeros((params_new.shape[0], nx, ny))
-    # for i in range(params_new.shape[0]):
-    # x_test[i] = GenGalIm(params_new[i]).array
-    # x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])
-    # x_test = (x_test - xmin) / xmax
+    # # Initialize bunch array
+    # x_test = np.zeros((y_test.shape[0], nx, ny))
+    # for i in range(y_test.shape[0]):
+    #     x_test[i] = GenGalIm(y_test[i]).array
+    #     # x_test = np.array(h5py.File(DataDir + '/output_tests/test_64_5_testing.hdf5', 'r')['galaxies'])
+    #     x_test = (x_test - xmin) / xmax
 
     # Save training/testing sets
     # np.savetxt(DataDir+'pca_decoded_xtest_64_5.txt', x_test_decoded)
@@ -313,28 +491,28 @@ def main(n):
 
     # # Plot Xnew vs GalSim
 
-    for i in range(10):
-        plt.subplot(4, 10, i+1)
-        plt.imshow(np.reshape(x_train_parametric[i+n], (nx, ny)))
+    # for i in range(10):
+    #     plt.subplot(4, 10, i+1)
+    #     plt.imshow(np.reshape(x_train_parametric[i+n], (nx, ny)))
 
-        plt.subplot(4, 10, 10+i+1)
-        plt.imshow(np.reshape(x_train[i+n], (nx, ny)))
-        # plt.title('Emulated image using PCA + GP '+str(i))
-        # plt.colorbar()
-        plt.subplot(4, 10, 20+i+1)
-        plt.imshow(np.reshape(x_train_decoded_pca[i+n], (nx, ny)))
-        # plt.title('Simulated image using GalSim '+str(i))
-        # plt.colorbar()
-        plt.subplot(4, 10, 30+i+1)
-        plt.imshow(np.reshape(x_train_decoded[i+n], (nx, ny)))
-        # plt.subplot(4, 10, 30+i+1)
+    #     plt.subplot(4, 10, 10+i+1)
+    #     plt.imshow(np.reshape(x_train[i+n], (nx, ny)))
+    #     # plt.title('Emulated image using PCA + GP '+str(i))
+    #     # plt.colorbar()
+    #     plt.subplot(4, 10, 20+i+1)
+    #     plt.imshow(np.reshape(x_train_decoded_pca[i+n], (nx, ny)))
+    #     # plt.title('Simulated image using GalSim '+str(i))
+    #     # plt.colorbar()
+    #     plt.subplot(4, 10, 30+i+1)
+    #     plt.imshow(np.reshape(x_train_decoded[i+n], (nx, ny)))
+    #     # plt.subplot(4, 10, 30+i+1)
         # plt.imshow(abs(np.reshape(x_train_real_decoded[i+n], (nx, ny))))
         # mse = np.mean((np.reshape(x_test_decoded[i], (nx, ny))-x_test[i])**2)
         # plt.title('MSE = '+str(mse), size=10)
         # plt.subplot(4, 10, 30+i+1)
         # plt.imshow(abs(np.reshape(x_test[i+n], (nx, ny))-np.reshape(x_test_decoded[i+n], (nx, ny))))
 
-    plt.show()
+    # plt.show()
 
     # return mse_train_pca, mse_test_pca, r2_train_pca, r2_test_pca
     # return mse_train_pca, r2_train_pca

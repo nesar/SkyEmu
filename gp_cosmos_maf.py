@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import GPy
 import h5py
 from keras import backend as K
@@ -11,6 +12,7 @@ tfd = tfp.distributions
 import tensorflow_hub as hub
 from  flow import masked_autoregressive_conditional_template
 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 # Convolution with PSF function
 def psf_convolve(args):
@@ -60,7 +62,7 @@ def gp_predict(model, params):
     return predic[0]
 
 
-n_cond = 16
+n_cond = 4
 
 
 def make_flow_fn(latent_size, maf_layers, maf_size, shift_only, activation):
@@ -161,6 +163,7 @@ def flow_model_fn(features, labels, mode, params, config):
                                       train_op=train_op,
                                       eval_metric_ops=eval_metric_ops)
 
+
 # network parameters
 DataDir = '../Data/Cosmos/'
 
@@ -185,9 +188,9 @@ x_train = np.reshape(x_train, (n_train, nx*ny))
 
 # Load training set parameters and rescale
 y_train = np.array(f['parameters'])
-ymean = np.mean(y_train, axis=0)
-ymax = np.max(y_train - ymean, axis=0)
-y_train = (y_train - ymean) * ymax**-1
+ymin = np.min(y_train, axis=0)
+ymax = np.max(y_train - ymin, axis=0)
+y_train = (y_train - ymin) * ymax**-1
 
 # Load training set psfs
 psf_train = np.fft.fftshift(np.array(f['psf']))
@@ -203,7 +206,7 @@ x_test = np.reshape(x_test, (n_test, nx*ny))
 
 # Load testing set parameters and rescale
 y_test = np.array(f['parameters'])
-y_test = (y_test - ymean) * ymax**-1
+y_test = (y_test - ymin) * ymax**-1
 
 # Load testing set parametric images
 # x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
@@ -230,53 +233,61 @@ psf_train = psf_train.astype('float32')
 psf_test = psf_test.astype('float32')
 
 x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'.txt')
+xe_mean = np.mean(x_train_encoded)
+xe_max = np.max(x_train_encoded - xe_mean)
+x_train_encoded = (x_train_encoded - xe_mean) / xe_max
+
 decoder1 = load_model(DataDir+'models/cvae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 # decoder2 = load_model(DataDir+'models/cvae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 
-dec_inputs2 = Input(shape=input_shape, name='dec_inputs2')
-psf_inputs = Input(shape=input_shape, name='psf_inputs')
-outputs2 = Lambda(psf_convolve, output_shape=input_shape)([dec_inputs2, psf_inputs])
-decoder2 = Model([dec_inputs2, psf_inputs], outputs2)
-
 print('Flow training ...')
-max_steps=30000
+max_steps = 30000
 params = { 'flow_fn': make_flow_fn(latent_size=32,
                                      maf_layers=4,
                                      maf_size=256,
                                      shift_only=True,
                                      activation=tf.nn.leaky_relu),
-            'learning_rate': 0.0002,
+            'learning_rate': 0.001,
             'max_steps': max_steps}
-model_dir='model_dir/flow'
-batch_size=32
+model_dir = 'model_dir/flow_reduce_5'
+batch_size = 64  #32
 # Build estimator
 estimator = tf.estimator.Estimator(
       flow_model_fn,
       params=params,
       config=tf.estimator.RunConfig(model_dir=model_dir))
 
+
 def input_fn_train():
     code = tf.data.Dataset.from_tensor_slices(x_train_encoded.astype('float32'))
-    cond = tf.data.Dataset.from_tensor_slices(y_train.astype('float32'))
+    cond = tf.data.Dataset.from_tensor_slices(y_train[:, :4].astype('float32'))
     dset = tf.data.Dataset.zip((code, cond))
     dset = dset.repeat().shuffle(buffer_size=1000).batch(batch_size).prefetch(16)
     iterator = dset.make_one_shot_iterator()
     batch_code, batch_cond = iterator.get_next()
     return {'x': batch_code, 'y': batch_cond}
 
+
 estimator.train(input_fn=input_fn_train, max_steps=max_steps)
 print('GP pediction ...')
 
 def input_fn_test():
-    dset = tf.data.Dataset.from_tensor_slices(y_test.astype('float32'))
+    dset = tf.data.Dataset.from_tensor_slices(y_test[:, :4].astype('float32'))
+    dset = dset.batch(32)
     iterator = dset.make_one_shot_iterator()
     batch_cond = iterator.get_next()
     return batch_cond
 
-pred = estimator.predict(input_fn_test, yield_single_examples=True)
-x_test_gp_encoded = np.array([p for p in pred])
-np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
+pred = estimator.predict(input_fn_test, yield_single_examples=True)
+x_test_gp_encoded = np.array([p['code'] for p in pred])*xe_max + xe_mean
+
+np.savetxt(DataDir + 'models/cvae_cosmos_maf_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
+
+dec_inputs2 = Input(shape=input_shape, name='dec_inputs2')
+psf_inputs = Input(shape=input_shape, name='psf_inputs')
+outputs2 = Lambda(psf_convolve, output_shape=input_shape)([dec_inputs2, psf_inputs])
+decoder2 = Model([dec_inputs2, psf_inputs], outputs2)
 print('Decoding ...')
 x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
-np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
+np.savetxt(DataDir + 'models/cvae_cosmos_maf_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))

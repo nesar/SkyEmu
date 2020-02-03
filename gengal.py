@@ -67,12 +67,13 @@ def GenGalIm(params):
     return image
 
 
-def GenSetGal(file_name):
+# def GenSetGal(file_name):
+def GenSetGal(params):
     """
     Given a file name containing parameters, generates a bunch of galaxy images.
     """
     # Load parameters
-    params = np.loadtxt(file_name)
+    # params = np.loadtxt(file_name)
     # Fixed parameters
     nx = 33  # pixels in the 1st spatial dimension
     ny = 33  # pixels in the 2nd spatial dimension
@@ -125,6 +126,40 @@ def PlotGal():
 
     # Plots
     plt.imshow(image.array)
+    plt.show()
+
+
+def rescale(img):
+    """
+    Rescale an image between 0 and 1 to plot.
+    """
+    return (img - np.min(img)) / np.max(img - np.min(img))
+
+
+def Plot_gals():
+    # file_name = '../Data/lhc_256_5.txt'
+    # gals = GenSetGal(file_name)
+
+    params = np.zeros((100, 5))
+    params[:, 0] = 1e4
+    params[:, 1] = 0.5
+    params[:, 2] = np.linspace(-0.5, 0.5, 100)
+    params[:, 3] = np.linspace(-0.5, 0.5, 100)
+    params[:, 4] = 0.2
+
+    gals = GenSetGal(params)
+    gals_plots = rescale(gals[0])
+    for i in range(9):
+        gals_plots = np.concatenate((gals_plots, rescale(gals[i+1])), axis=1)
+
+    for i in range(9):
+        gals_plots_ = rescale(gals[10*(i+1)+1])
+        for j in range(9):
+            gals_plots_ = np.concatenate((gals_plots_, rescale(gals[10*(i+1)+1+j])), axis=1)
+        gals_plots = np.concatenate((gals_plots, gals_plots_), axis=0)
+
+    plt.imshow(gals_plots, cmap='gray')
+    plt.axis('off')
     plt.show()
 
 

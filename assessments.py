@@ -9,8 +9,8 @@ from matplotlib.colors import LogNorm
 from matplotlib import cm
 import umap
 
-import matplotlib
-matplotlib.use('Agg')
+# import matplotlib
+# matplotlib.use('Agg')
 
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -98,7 +98,7 @@ def pixel_intensity(PlotDir, true, predicted):
     # plt.show()
     plt.subplot(122)
     plt.scatter(true.flatten(), predicted.flatten(), s=1)
-    plt.plot(np.linspace(0, 1), np.linspace(0, 1), 'r')
+    plt.plot(np.linspace(0, 0.1), np.linspace(0, 0.1), 'r')
     plt.xlabel('True pixel intensity')
     plt.ylabel('Predicted pixel intensity')
     plt.tight_layout()
@@ -119,8 +119,8 @@ def shear_estimation(PlotDir, true, predicted, psf):
     for i in range(n_imgs):
         # shape_true = galsim.hsm.EstimateShear(galsim.Image(true[i]), galsim.Image(psf[i])).observed_shape
         # shape_pred = galsim.hsm.EstimateShear(galsim.Image(predicted[i]), galsim.Image(psf[i])).observed_shape
-        # print(i)
-        if i == 280:
+        print(i)
+        if i == 500:
             i += 1
 
         psf = galsim.Gaussian(fwhm=0.04)
@@ -177,61 +177,116 @@ def shear_estimation(PlotDir, true, predicted, psf):
     return diff_g1, diff_g2
 
 
+def plot_dataset(PlotDir, data):
+    for i in range(15):
+        data_plt_ = rescale(data[15*i])
+        for j in range(15):
+            data_plt_ = np.concatenate((data_plt_, rescale(data[15*i+j+1])), axis=1)
+
+
+def rescale_im(img):
+    """
+    Rescale an image between 0 and 1 to plot.
+    """
+    return (img - np.min(img)) / np.max(img - np.min(img))
+
+
 def plot_results(PlotDir, x_train, x_train_decoded, x_train_decoded_psf, x_test, x_test_decoded, x_test_decoded_psf):
-    x_train_plt = rescale(x_train[0])
-    x_train_decoded_plt = rescale(x_train_decoded[0])
-    x_train_decoded_psf_plt = rescale(x_train_decoded_psf[0])
-    error_train_plt = rescale(abs(x_train[0] - x_train_decoded_psf[0]))
+    # x_train_plt = rescale(x_train[0])
+    # x_train_decoded_plt = rescale(x_train_decoded[0])
+    # x_train_decoded_psf_plt = rescale(x_train_decoded_psf[0])
+    # error_train_plt = rescale(abs(x_train[0] - x_train_decoded_psf[0]))
 
-    x_test_plt = rescale(x_test[0])
-    x_test_decoded_plt = rescale(x_test_decoded[0])
-    x_test_decoded_psf_plt = rescale(x_test_decoded_psf[0])
-    error_test_plt = rescale(abs(x_test[0] - x_test_decoded_psf[0]))
+    # x_test_plt = rescale(x_test[0])
+    # x_test_decoded_plt = rescale(x_test_decoded[0])
+    # x_test_decoded_psf_plt = rescale(x_test_decoded_psf[0])
+    # error_test_plt = rescale(abs(x_test[0] - x_test_decoded_psf[0]))
 
-    for i in range(10):
-        x_train_plt = np.concatenate((x_train_plt, rescale(x_train[i+1])), axis=1)
-        x_train_decoded_plt = np.concatenate((x_train_decoded_plt, rescale(x_train_decoded[i+1])), axis=1)
-        x_train_decoded_psf_plt = np.concatenate((x_train_decoded_psf_plt, rescale(x_train_decoded_psf[i+1])), axis=1)
-        error_train_plt = np.concatenate((error_train_plt, rescale(abs(x_train[i+1] - x_train_decoded_psf[i+1]))), axis=1)
+    # for i in range(10):
+    #     x_train_plt = np.concatenate((x_train_plt, rescale(x_train[i+1])), axis=1)
+    #     x_train_decoded_plt = np.concatenate((x_train_decoded_plt, rescale(x_train_decoded[i+1])), axis=1)
+    #     x_train_decoded_psf_plt = np.concatenate((x_train_decoded_psf_plt, rescale(x_train_decoded_psf[i+1])), axis=1)
+    #     error_train_plt = np.concatenate((error_train_plt, rescale(abs(x_train[i+1] - x_train_decoded_psf[i+1]))), axis=1)
 
-        x_test_plt = np.concatenate((x_test_plt, rescale(x_test[i+1])), axis=1)
-        x_test_decoded_plt = np.concatenate((x_test_decoded_plt, rescale(x_test_decoded[i+1])), axis=1)
-        x_test_decoded_psf_plt = np.concatenate((x_test_decoded_psf_plt, rescale(x_test_decoded_psf[i+1])), axis=1)
-        error_test_plt = np.concatenate((error_test_plt, rescale(abs(x_test[i+1] - x_test_decoded_psf[i+1]))), axis=1)
+    #     x_test_plt = np.concatenate((x_test_plt, rescale(x_test[i+1])), axis=1)
+    #     x_test_decoded_plt = np.concatenate((x_test_decoded_plt, rescale(x_test_decoded[i+1])), axis=1)
+    #     x_test_decoded_psf_plt = np.concatenate((x_test_decoded_psf_plt, rescale(x_test_decoded_psf[i+1])), axis=1)
+    #     error_test_plt = np.concatenate((error_test_plt, rescale(abs(x_test[i+1] - x_test_decoded_psf[i+1]))), axis=1)
+
+    # plt.figure()
+    # plt.subplot(411)
+    # plt.imshow(x_train_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.subplot(412)
+    # plt.imshow(x_train_decoded_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.subplot(413)
+    # plt.imshow(x_train_decoded_psf_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.subplot(414)
+    # plt.imshow(error_train_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.tight_layout()
+    # plt.savefig(PlotDir+'cosmos_training_set_images.png')
+    # plt.close()
+
+    # plt.figure()
+    # plt.subplot(411)
+    # plt.imshow(x_test_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.subplot(412)
+    # plt.imshow(x_test_decoded_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.subplot(413)
+    # plt.imshow(x_test_decoded_psf_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.subplot(414)
+    # plt.imshow(error_test_plt, cmap='gray')
+    # plt.axis('off')
+    # plt.tight_layout()
+    # plt.savefig(PlotDir+'cosmos_testing_set_images.png')
+    # plt.close()
+
+    x_test_decoded_noise = x_test_decoded_psf + 4e-4*np.random.randn(x_test_decoded.shape[0], x_test_decoded.shape[1], x_test_decoded.shape[2])
 
     plt.figure()
-    plt.subplot(411)
-    plt.imshow(x_train_plt, cmap='gray')
+    orig_plots = rescale_im(x_test[0])
+    for i in range(9):
+        orig_plots = np.concatenate((orig_plots, rescale_im(x_test[i+1])), axis=1)
+    for i in range(1):
+        orig_plots_ = rescale_im(x_test[10*(i+1)+1])
+        for j in range(9):
+            orig_plots_ = np.concatenate((orig_plots_, rescale_im(x_test[10*(i+1)+1+j])), axis=1)
+        orig_plots = np.concatenate((orig_plots, orig_plots_), axis=0)
+    plt.imshow(orig_plots)
     plt.axis('off')
-    plt.subplot(412)
-    plt.imshow(x_train_decoded_plt, cmap='gray')
-    plt.axis('off')
-    plt.subplot(413)
-    plt.imshow(x_train_decoded_psf_plt, cmap='gray')
-    plt.axis('off')
-    plt.subplot(414)
-    plt.imshow(error_train_plt, cmap='gray')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.savefig(PlotDir+'cosmos_training_set_images.png')
-    plt.close()
+    plt.show()
 
     plt.figure()
-    plt.subplot(411)
-    plt.imshow(x_test_plt, cmap='gray')
+    rec_plots = rescale_im(x_test_decoded_psf[0])
+    for i in range(9):
+        rec_plots = np.concatenate((rec_plots, rescale_im(x_test_decoded_psf[i+1])), axis=1)
+    for i in range(1):
+        rec_plots_ = rescale_im(x_test_decoded_psf[10*(i+1)+1])
+        for j in range(9):
+            rec_plots_ = np.concatenate((rec_plots_, rescale_im(x_test_decoded_psf[10*(i+1)+1+j])), axis=1)
+        rec_plots = np.concatenate((rec_plots, rec_plots_), axis=0)
+    plt.imshow(rec_plots)
     plt.axis('off')
-    plt.subplot(412)
-    plt.imshow(x_test_decoded_plt, cmap='gray')
+    plt.show()
+
+    plt.figure()
+    rec_plots = rescale_im(x_test_decoded_noise[0])
+    for i in range(9):
+        rec_plots = np.concatenate((rec_plots, rescale_im(x_test_decoded_noise[i+1])), axis=1)
+    for i in range(1):
+        rec_plots_ = rescale_im(x_test_decoded_noise[10*(i+1)+1])
+        for j in range(9):
+            rec_plots_ = np.concatenate((rec_plots_, rescale_im(x_test_decoded_noise[10*(i+1)+1+j])), axis=1)
+        rec_plots = np.concatenate((rec_plots, rec_plots_), axis=0)
+    plt.imshow(rec_plots)
     plt.axis('off')
-    plt.subplot(413)
-    plt.imshow(x_test_decoded_psf_plt, cmap='gray')
-    plt.axis('off')
-    plt.subplot(414)
-    plt.imshow(error_test_plt, cmap='gray')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.savefig(PlotDir+'cosmos_testing_set_images.png')
-    plt.close()
+    plt.show()
 
 
 def latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge):
@@ -410,12 +465,12 @@ def plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test):
 def plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_psf, x_test_gp_decoded):
     x_test_plt = rescale(x_test[0])
     x_test_decoded_plt = rescale(x_test_decoded_psf[0])
-    x_test_decoded_gp_plt = rescale(x_test_gp_decoded[0])
+    x_test_decoded_gp_plt = rescale(x_test_gp_decoded[1])
 
     for i in range(10):
         x_test_plt = np.concatenate((x_test_plt, rescale(x_test[i+1])), axis=1)
         x_test_decoded_plt = np.concatenate((x_test_decoded_plt, rescale(x_test_decoded_psf[i+1])), axis=1)
-        x_test_decoded_gp_plt = np.concatenate((x_test_decoded_gp_plt, rescale(x_test_gp_decoded[i+1])), axis=1)
+        x_test_decoded_gp_plt = np.concatenate((x_test_decoded_gp_plt, rescale(x_test_gp_decoded[i+10+1])), axis=1)
 
     plt.figure()
     plt.subplot(311)
@@ -431,25 +486,91 @@ def plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_
     plt.savefig(PlotDir+'cosmos_testing_set_images_gp.png')
     plt.close()
 
-    counts_true, bins = np.histogram(x_test_encoded.flatten(), bins=100)
-    counts_pred, bins = np.histogram(x_test_gp_encoded.flatten(), bins=bins)
+    # counts_true, bins = np.histogram(x_test_encoded.flatten(), bins=100)
+    # counts_pred, bins = np.histogram(x_test_gp_encoded.flatten(), bins=bins)
 
-    plt.figure()
-    plt.subplot(121)
-    plt.semilogy(bins[:-1], counts_true, 's-', label='VAE encoded')
-    plt.semilogy(bins[:-1], counts_pred, 's-', label='GP encoded')
-    plt.legend()
-    plt.xlabel('Latent space variable value')
-    plt.ylabel('Counts')
+    # plt.figure()
+    # plt.subplot(121)
+    # plt.semilogy(bins[:-1], counts_true, 's-', label='VAE encoded')
+    # plt.semilogy(bins[:-1], counts_pred, 's-', label='GP encoded')
+    # plt.legend()
+    # plt.xlabel('Latent space variable value')
+    # plt.ylabel('Counts')
+    # # plt.show()
+    # plt.subplot(122)
+    # plt.scatter(x_test_encoded.flatten(), x_test_gp_encoded.flatten(), s=1)
+    # plt.plot(np.linspace(np.min(x_test_encoded.flatten()), np.max(x_test_encoded.flatten())), np.linspace(np.min(x_test_encoded.flatten()), np.max(x_test_encoded.flatten())), 'r')
+    # plt.xlabel('VAE latent space variable value')
+    # plt.ylabel('GP latent space variable value')
+    # plt.tight_layout()
+    # plt.savefig(PlotDir+'cosmos_gp_encoded_vae_encoded_testing_set.png')
+    # plt.close()
+
+    # plt.figure()
+    # orig_plots = rescale_im(x_test[0])
+    # for i in range(9):
+    #     orig_plots = np.concatenate((orig_plots, rescale_im(x_test[i+10+1])), axis=1)
+    # for i in range(1):
+    #     orig_plots_ = rescale_im(x_test[10*(i+1)+10+1])
+    #     for j in range(9):
+    #         orig_plots_ = np.concatenate((orig_plots_, rescale_im(x_test[10*(i+1)+10+2+j])), axis=1)
+    #     orig_plots = np.concatenate((orig_plots, orig_plots_), axis=0)
+    # plt.imshow(orig_plots)
+    # plt.axis('off')
+    # # plt.show()
+
+    # plt.figure()
+    # rec_plots = rescale_im(x_test_gp_decoded[0])
+    # for i in range(9):
+    #     rec_plots = np.concatenate((rec_plots, rescale_im(x_test_gp_decoded[i+10+1])), axis=1)
+    # for i in range(1):
+    #     rec_plots_ = rescale_im(x_test_gp_decoded[10*(i+1)+10+1])
+    #     for j in range(9):
+    #         rec_plots_ = np.concatenate((rec_plots_, rescale_im(x_test_gp_decoded[10*(i+1)+2+j])), axis=1)
+    #     rec_plots = np.concatenate((rec_plots, rec_plots_), axis=0)
+    # plt.imshow(rec_plots)
+    # plt.axis('off')
+    # # plt.show()
+
+    # x_test_decoded_noise = x_test_gp_decoded + 4e-4*np.random.randn(x_test_decoded_psf.shape[0], x_test_decoded_psf.shape[1], x_test_decoded_psf.shape[2])
+    # plt.figure()
+    # rec_plots = rescale_im(x_test_decoded_noise[0])
+    # for i in range(9):
+    #     rec_plots = np.concatenate((rec_plots, rescale_im(x_test_decoded_noise[i+1])), axis=1)
+    # for i in range(1):
+    #     rec_plots_ = rescale_im(x_test_decoded_noise[10*(i+1)+1])
+    #     for j in range(9):
+    #         rec_plots_ = np.concatenate((rec_plots_, rescale_im(x_test_decoded_noise[10*(i+1)+2+j])), axis=1)
+    #     rec_plots = np.concatenate((rec_plots, rec_plots_), axis=0)
+    # plt.imshow(rec_plots)
+    # plt.axis('off')
     # plt.show()
-    plt.subplot(122)
-    plt.scatter(x_test_encoded.flatten(), x_test_gp_encoded.flatten(), s=1)
-    plt.plot(np.linspace(np.min(x_test_encoded.flatten()), np.max(x_test_encoded.flatten())), np.linspace(np.min(x_test_encoded.flatten()), np.max(x_test_encoded.flatten())), 'r')
-    plt.xlabel('VAE latent space variable value')
-    plt.ylabel('GP latent space variable value')
+
+
+def plot_params(PlotDir, y_train, y_test):
+    f, a = plt.subplots(y_train.shape[1], y_train.shape[1], sharex=True, sharey=True)
+    plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+    plt.rcParams.update({'font.size': 4})
+
+    for i in range(y_train.shape[1]):
+        for j in range(i+1):
+            # print(i, j)
+            if(i != j):
+                a[i, j].scatter(y_train[:, i], y_train[:, j], s=1, alpha=0.7)
+                a[i, j].scatter(y_test[:, i], y_test[:, j], s=1, alpha=0.7)
+                a[i, j].grid(True)
+                a[j, i].set_visible(False)
+
+            else:
+                # a[i,i].set_title(AllLabels[i])
+                # a[i, i].text(0.4, 0.4, size='x-large')
+                hist, bin_edges = np.histogram(y_train[:, i], density=True, bins=12)
+                # a[i,i].bar(hist)
+                a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
+                plt.xlim(0, 1)
+                plt.ylim(0, 1)
     plt.tight_layout()
-    plt.savefig(PlotDir+'cosmos_gp_encoded_vae_encoded_testing_set.png')
-    plt.close()
+    plt.savefig('../Data/Plots/LatinSq.pdf', bbox_inches="tight", dpi=900)
 
 
 # ------------------------------------- MAIN -----------------------------------------
@@ -465,10 +586,10 @@ def main(args):
     nx = 64
     ny = 64
 
-    os.remove(PlotDir+'*.png')
+    # os.remove(PlotDir+'*.png')
 
     # ------------------------ Load data and models -----------------------------
-
+    print('Loading data ...')
     # Load training and testing set
     f = h5py.File(DataDir + 'data/cosmos_real_trainingset_train_'+str(ntrain)+'_test_'+str(ntest)+'.hdf5', 'r')
     x_train = np.array(f['real galaxies'])
@@ -486,7 +607,7 @@ def main(args):
 
     # Rescaling
     xmin = np.min(x_train)
-    xmax = np.max(x_train) - xmin
+    xmax = np.max(x_train - xmin)
     x_train = (x_train - xmin) / xmax
     x_test = (x_test - xmin) / xmax
     x_train = K.cast_to_floatx(x_train)
@@ -495,11 +616,11 @@ def main(args):
     ymin = np.min(y_train, axis=0)
     ymax = np.max(y_train - ymin, axis=0)
     y_train = (y_train - ymin) / ymax
-    y_train_sersic = (y_train_sersic - ymin[:4]) / ymax[:4]
-    y_train_bulge = (y_train_bulge - ymin[4:]) / ymax[4:]
+    # y_train_sersic = (y_train_sersic - ymin[:4]) / ymax[:4]
+    # y_train_bulge = (y_train_bulge - ymin[4:]) / ymax[4:]
     y_test = (y_test - ymin) / ymax
-    y_test_sersic = (y_test_sersic - ymin[:4]) / ymax[:4]
-    y_test_bulge = (y_test_bulge - ymin[4:]) / ymax[4:]
+    # y_test_sersic = (y_test_sersic - ymin[:4]) / ymax[:4]
+    # y_test_bulge = (y_test_bulge - ymin[4:]) / ymax[4:]
 
     # Compute reconstructed testing set
     # x_test_encoded = np.loadtxt(DataDir+'Cosmos/models/cvae_encoded_xtest_512_5.txt')
@@ -509,33 +630,35 @@ def main(args):
     # decoder = load_model(DataDir+'Galsim/cvae_decoder_model_galsim.h5')
     # x_test_decoded = np.zeros((ntest, nx, ny))
     # x_test_decoded = decoder.predict(x_test_encoded)
-    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    # x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'.txt')
-    x_test_gp_encoded = np.loadtxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt')
-    x_test_gp_decoded = np.reshape(np.loadtxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    x_test_gp_encoded = np.loadtxt(DataDir + 'models/cvae_cosmos_maf_encoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt')
+    x_test_gp_decoded = np.reshape(np.loadtxt(DataDir + 'models/cvae_cosmos_maf_decoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt'), (ntest, nx, ny))
 
     # Load reconstructed training set
-    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
-    x_train_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    # x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    # x_train_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
     x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'.txt')
 
     # -------------------- Plotting routines --------------------------
 
-    print('Plot results ...')
-    plot_results(PlotDir, x_train, x_train_decoded, x_train_decoded_psf, x_test, x_test_decoded, x_test_decoded_psf)
-    print('Plot mse/r2 ...')
-    mse, r2 = mse_r2(PlotDir, x_train, x_train_decoded_psf)
-    print('Plot pixel intensity ...')
-    pixel_intensity(PlotDir, x_test, x_test_decoded_psf)
-    print('Plot shear estimation ...')
-    diff_g1, diff_g2 = shear_estimation(PlotDir, x_train, x_train_decoded[:, :, :], np.zeros(x_test.shape))
-    # print('Plot latent space ...')
-    # latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
-    print('Plot umap ...')
-    plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test)
+    # print('Plot results ...')
+    # plot_results(PlotDir, x_train, x_train_decoded, x_train_decoded_psf, x_test, x_test_decoded, x_test_decoded_psf)
+    # print('Plot mse/r2 ...')
+    # mse, r2 = mse_r2(PlotDir, x_test, x_test_decoded_psf)
+    # print('Plot pixel intensity ...')
+    # pixel_intensity(PlotDir, x_test, x_test_decoded_psf)
     print('Plot GP ...')
     plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_psf, x_test_gp_decoded)
+    # print('Plot shear estimation ...')
+    # diff_g1, diff_g2 = shear_estimation(PlotDir, x_test, x_test_decoded_psf, np.zeros(x_test.shape))
+    # print('Plot latent space ...')
+    # latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
+    # print('Plot umap ...')
+    # plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test)
+    # print('Plot params ...')
+    # plot_params(PlotDir, y_train[:, :4], y_test[:, :4])
 
 
 if __name__ == "__main__":

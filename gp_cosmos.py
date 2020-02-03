@@ -6,6 +6,9 @@ from keras.layers import Input, Lambda
 from keras.models import load_model, Model
 import tensorflow as tf
 
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 
 # Convolution with PSF function
 def psf_convolve(args):
@@ -57,12 +60,13 @@ def gp_predict(model, params):
 # network parameters
 DataDir = '../Data/Cosmos/'
 
-n_train = 4096
-n_test = 256
+n_train = 16384
+n_test = 512
 nx = 64
 ny = 64
 input_shape = (nx, ny, 1)
 
+print('Loading data ...')
 # Load training set images and rescale fluxes
 path = DataDir + 'data/cosmos_real_trainingset_train_'+str(n_train)+'_test_'+str(n_test)+'.hdf5'
 f = h5py.File(path, 'r')
@@ -123,6 +127,10 @@ psf_train = psf_train.astype('float32')
 psf_test = psf_test.astype('float32')
 
 x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'.txt')
+xe_mean = np.mean(x_train_encoded)
+xe_max = np.max(x_train_encoded - xe_mean)
+x_train_encoded = (x_train_encoded - xe_mean) / xe_max
+
 decoder1 = load_model(DataDir+'models/cvae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 # decoder2 = load_model(DataDir+'models/cvae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 
@@ -132,9 +140,9 @@ outputs2 = Lambda(psf_convolve, output_shape=input_shape)([dec_inputs2, psf_inpu
 decoder2 = Model([dec_inputs2, psf_inputs], outputs2)
 
 print('GP training ...')
-gpmodel = gp_fit(x_train_encoded, y_train)
+gpmodel = gp_fit(x_train_encoded, y_train[:, :4])
 print('GP pediction ...')
-x_test_gp_encoded = gp_predict(gpmodel, y_test)
+x_test_gp_encoded = gp_predict(gpmodel, y_test[:, :4])*xe_max + xe_mean
 np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
 print('Decoding ...')

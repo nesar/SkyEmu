@@ -97,29 +97,29 @@ def main():
         # lhd = norm(loc=0, scale=1).ppf(lhd)  # this applies to both factors here
 
         #
-        if verbose:
-            f, a = plt.subplots(AllPara.shape[0], AllPara.shape[0], sharex=True, sharey=True)
-            plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
-            plt.rcParams.update({'font.size': 4})
+        # if verbose:
+        #     f, a = plt.subplots(AllPara.shape[0], AllPara.shape[0], sharex=True, sharey=True)
+        #     plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+        #     plt.rcParams.update({'font.size': 4})
 
-        for i in range(AllPara.shape[0]):
-            for j in range(i+1):
-                print(i, j)
-                if(i != j):
-                    a[i, j].scatter(lhd[:, i], lhd[:, j], s=1, alpha=0.7)
-                    a[i, j].grid(True)
-                    a[j, i].set_visible(False)
+        # for i in range(AllPara.shape[0]):
+        #     for j in range(i+1):
+        #         print(i, j)
+        #         if(i != j):
+        #             a[i, j].scatter(lhd[:, i], lhd[:, j], s=1, alpha=0.7)
+        #             a[i, j].grid(True)
+        #             a[j, i].set_visible(False)
 
-                else:
-                    # a[i,i].set_title(AllLabels[i])
-                    a[i, i].text(0.4, 0.4, AllLabels[i], size='x-large')
-                    hist, bin_edges = np.histogram(lhd[:, i], density=True, bins=12)
-                    # a[i,i].bar(hist)
-                    a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
-                    plt.xlim(0, 1)
-                    plt.ylim(0, 1)
-        plt.tight_layout()
-        plt.savefig('../Data/Plots/LatinSq.pdf', figsize=(5000, 5000), bbox_inches="tight", dpi=900)
+        #         else:
+        #             # a[i,i].set_title(AllLabels[i])
+        #             a[i, i].text(0.4, 0.4, AllLabels[i], size='x-large')
+        #             hist, bin_edges = np.histogram(lhd[:, i], density=True, bins=12)
+        #             # a[i,i].bar(hist)
+        #             a[i, i].bar(bin_edges[:-1], hist/hist.max(), width=0.09, alpha=0.5)
+        #             plt.xlim(0, 1)
+        #             plt.ylim(0, 1)
+        # plt.tight_layout()
+        # plt.savefig('../Data/Plots/LatinSq.pdf', figsize=(5000, 5000), bbox_inches="tight", dpi=900)
 
         #     plt.show()
 
