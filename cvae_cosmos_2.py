@@ -12,6 +12,7 @@ from keras.utils import plot_model
 from keras.regularizers import l1, l2, l1_l2
 from keras import backend as K
 import tensorflow as tf
+from keras.callbacks import ModelCheckpoint
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,11 +33,6 @@ def psf_convolve(args):
     convfft = tf.spectral.irfft2d(imgfft * psffft)
     h = tf.expand_dims(convfft, axis=-1)
     return h
-
-
-def poisson_noise(args):
-    img = args
-    return tf.random.normal((64, 64, 1), mean=img, stddev=5e-3)
 
 
 def rescale(params):
@@ -63,7 +59,6 @@ def sampling(args):
      Returns
         z (tensor): sampled latent vector
     """
-
     z_mean, z_log_var = args
     batch = K.shape(z_mean)[0]
     dim = K.int_shape(z_mean)[1]
@@ -75,15 +70,14 @@ def sampling(args):
 def plot_results(models,
                  data,
                  batch_size=128,
-                 model_name="vae_mnist"):
-    """Plots labels and MNIST digits as function of 2-dim latent vector
+                 model_name="vae_cosmos"):
+    """ Plots labels and cosmos galaxies as function of 2-dim latent vector
         Arguments
         models (tuple): encoder and decoder models
         data (tuple): test data and label
         batch_size (int): prediction batch size
         model_name (string): which model is using this function
     """
-
     encoder, decoder = models
     x_test, y_test = data
     os.makedirs(model_name, exist_ok=True)
@@ -100,7 +94,7 @@ def plot_results(models,
     plt.savefig(filename)
     plt.show()
 
-    filename = os.path.join(model_name, "digits_over_latent.png")
+    filename = os.path.join(model_name, "_params_over_latent.png")
     # display a 30x30 2D manifold of digits
     n = 30
     digit_size = 28
@@ -134,11 +128,12 @@ def plot_results(models,
 
 # ------------------------------ LOAD DATA ----------------------------------
 
+
 # network parameters
 DataDir = '../Data/Cosmos/'
 
-n_train = 16384
-n_test = 512
+n_train = 200
+n_test = 20
 nx = 64
 ny = 64
 
@@ -151,10 +146,6 @@ xmin = np.min(x_train)
 xmax = np.max(x_train) - xmin
 x_train = (x_train - xmin) / xmax
 x_train = np.reshape(x_train, (n_train, nx*ny))
-
-# Load testing set parametric images
-# x_train_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
-# x_train_parametric = np.reshape(x_train_parametric, (n_train, nx*ny))
 
 # Load training set parameters and rescale
 y_train = np.array(f['parameters'])
@@ -177,10 +168,6 @@ x_test = np.reshape(x_test, (n_test, nx*ny))
 # Load testing set parameters and rescale
 y_test = np.array(f['parameters'])
 y_test = (y_test - ymean) * ymax**-1
-
-# Load testing set parametric images
-# x_test_parametric = (np.array(f['parametric galaxies']) - xmin) / xmax
-# x_test_parametric = np.reshape(x_test_parametric, (n_test, nx*ny))
 
 # Load training set psfs
 psf_test = np.fft.fftshift(np.array(f['psf']))
@@ -206,20 +193,20 @@ psf_test = psf_test.astype('float32')
 input_shape = (nx, ny, 1)
 batch = 32
 kernel_size = 4
-n_conv = 3
-filters = 8
+n_conv = 2
+filters = 16
 interm_dim1 = 2048
 interm_dim2 = 512
 interm_dim3 = 256
 interm_dim4 = 128
 latent_dim = 32
-epochs = 5000
+epochs = 20
 drop = 0.1
 l1_ = 0.01
 l2_ = 0.01
 
 epsilon_mean = 0.
-epsilon_std = 1e-6
+epsilon_std = 1e-5
 
 learning_rate = 1e-5
 decay_rate = 1e-1
@@ -256,7 +243,7 @@ z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 # instantiate encoder model
 encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
-plot_model(encoder, to_file='vae_cnn_encoder.png', show_shapes=True)
+plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
 
 # DECODER
 
@@ -322,17 +309,22 @@ kl_loss *= -0.5
 vae_loss = K.mean(reconstruction_loss + kl_loss)
 
 vae.add_loss(vae_loss)
-vae.compile(optimizer='rmsprop')
+vae.compile(optimizer='adam')
 K.set_value(vae.optimizer.lr, learning_rate)
 K.set_value(vae.optimizer.decay, decay_rate)
 vae.summary()
 # plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
+# Introduce Checkpoints
+filepath=DataDir+'checkpoints/weights.{epoch:02d}_{val_loss:.2f}.hdf5'
+checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_weights_only=True, period=10)
+callback_list = [checkpoint]
+
 # if args.weights:
 #     vae.load_weights(args.weights)
 # else:
 # train the autoencoder
-vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None))
+vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
 # vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
 # Save weights and models
@@ -387,7 +379,7 @@ def gp_fit(weights, y_train):
     model.optimize()
 
     # Save model
-    model.save_model('../Data/Cosmos/gpmodel/gpfit_cvae', compress=True, save_data=True)
+    model.save_model(DataDir+'gpmodel/gpfit_vae_cnn', compress=True, save_data=True)
     return model
 
 
