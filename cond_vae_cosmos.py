@@ -202,7 +202,7 @@ input_shape = (nx, ny, 1)
 batch = 32
 kernel_size = 4
 n_conv = 2
-filters = 16
+filters = 8
 interm_dim1 = 2048
 interm_dim2 = 512
 interm_dim3 = 256
@@ -216,7 +216,7 @@ l2_ = 0.01
 epsilon_mean = 0.
 epsilon_std = 1e-5
 
-learning_rate = 1e-5
+learning_rate = 1e-4
 decay_rate = 1e-1
 
 # VAE model = encoder + decoder
@@ -292,7 +292,7 @@ decoder2.summary()
 # decoder_nopsfnoise = Model(latent_inputs1, outputs, name='decoder_nopsfnoise')
 
 # instantiate VAE model
-outputs = decoder2([decoder1(encoder(inputs)[2]), psf_inputs])
+outputs = decoder2([decoder1(concat(encoder(x)[2], params)), psf_inputs])
 vae = Model([[inputs, params], psf_inputs], outputs, name='vae')
 
 ####### main function #######
@@ -326,15 +326,17 @@ vae.summary()
 # plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
 # Introduce Checkpoints
-filepath = DataDir+'checkpoints/weights.{epoch:02d}_{val_loss:.2f}.hdf5'
+filepath = DataDir+'checkpoints/weights.{epoch:04d}_{val_loss:.2f}.hdf5'
 checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_weights_only=True, period=10)
 callback_list = [checkpoint, EarlyStopping(patience=5)]
+
+# Resume training from previous epochs
 
 # if args.weights:
 #     vae.load_weights(args.weights)
 # else:
 # train the autoencoder
-vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
+vae.fit({'encoder_input': [x_train, y_train], 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': [x_test, y_test], 'psf_inputs': psf_test}, None), callbacks=callback_list)
 # vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
 # Save weights and models
@@ -408,13 +410,13 @@ def gp_predict(model, params):
     return predic[0]
 
 
-print('GP training ...')
-gpmodel = gp_fit(x_train_encoded[0], y_train)
-x_test_gp_encoded = gp_predict(gpmodel, y_test)
-np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
+# print('GP training ...')
+# gpmodel = gp_fit(x_train_encoded[0], y_train)
+# x_test_gp_encoded = gp_predict(gpmodel, y_test)
+# np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
-x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
-np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
+# x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
+# np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
 
 
 # image_size = nx

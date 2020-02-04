@@ -194,13 +194,13 @@ input_shape = (nx, ny, 1)
 batch = 32
 kernel_size = 4
 n_conv = 2
-filters = 16
+filters = 8
 interm_dim1 = 2048
 interm_dim2 = 512
 interm_dim3 = 256
 interm_dim4 = 128
 latent_dim = 32
-epochs = 20
+epochs = 1000
 drop = 0.1
 l1_ = 0.01
 l2_ = 0.01
@@ -208,7 +208,7 @@ l2_ = 0.01
 epsilon_mean = 0.
 epsilon_std = 1e-5
 
-learning_rate = 1e-5
+learning_rate = 1e-4
 decay_rate = 1e-1
 
 # VAE model = encoder + decoder
@@ -243,7 +243,7 @@ z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 # instantiate encoder model
 encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
-plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
+# plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
 
 # DECODER
 
@@ -309,22 +309,30 @@ kl_loss *= -0.5
 vae_loss = K.mean(reconstruction_loss + kl_loss)
 
 vae.add_loss(vae_loss)
-vae.compile(optimizer='adam')
+vae.compile(optimizer='rmsprop')
 K.set_value(vae.optimizer.lr, learning_rate)
 K.set_value(vae.optimizer.decay, decay_rate)
 vae.summary()
 # plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
 # Introduce Checkpoints
-filepath = DataDir+'checkpoints/weights.{epoch:02d}_{val_loss:.2f}.hdf5'
+filepath = DataDir+'checkpoints/weights.{epoch:03d}_{val_loss:.2f}.hdf5'
 checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_weights_only=True, period=10)
 callback_list = [checkpoint, EarlyStopping(patience=5)]
+
+# Resume training from previous epochs
+checkpoints_path = os.listdir(DataDir+'checkpoints/')
+if checkpoints_path:
+    vae.load_weights(DataDir+'checkpoints/'+checkpoints_path[-1])
+    n_epoch = int(checkpoints_path[-1][8:11])
+else:
+    n_epoch = 0
 
 # if args.weights:
 #     vae.load_weights(args.weights)
 # else:
 # train the autoencoder
-vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
+vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, initial_epoch=n_epoch, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
 # vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
 # Save weights and models
