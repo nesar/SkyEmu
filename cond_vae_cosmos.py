@@ -5,6 +5,7 @@ from __future__ import print_function
 from keras.layers import Dense, Input, Dropout
 from keras.layers import Conv2D, Flatten, Lambda, GaussianNoise
 from keras.layers import Reshape, Conv2DTranspose
+from keras.layers.merge import concatenate
 from keras.models import Model
 from keras.datasets import mnist
 from keras.losses import mse, binary_crossentropy
@@ -13,22 +14,16 @@ from keras.regularizers import l1, l2, l1_l2
 from keras import backend as K
 import tensorflow as tf
 from keras.callbacks import ModelCheckpoint, EarlyStopping
-from keras.layers.merge import concatenate as concat
 
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import os
 import h5py
-import GPy
+# import GPy
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-
-
-# -----------------------------------------------------------------------------------
-# Conditional version of cvae_cosmos_2.py
-# -----------------------------------------------------------------------------------
 
 
 # Convolution with PSF function
@@ -130,7 +125,7 @@ def plot_results(models,
     plt.ylabel("z[1]")
     plt.imshow(figure, cmap='Greys_r')
     plt.savefig(filename)
-    plt.show()
+    # plt.show()
 
 # ------------------------------ LOAD DATA ----------------------------------
 
@@ -142,6 +137,7 @@ n_train = 200
 n_test = 20
 nx = 64
 ny = 64
+nparams = 10
 
 
 # Load training set images and rescale fluxes
@@ -185,8 +181,8 @@ x_test = K.cast_to_floatx(x_test)
 psf_train = K.cast_to_floatx(psf_train)
 psf_test = K.cast_to_floatx(psf_test)
 
-x_train = np.reshape(x_train, [-1, nx, ny, 1])
-x_test = np.reshape(x_test, [-1, nx, ny, 1])
+x_train = np.reshape(x_train, [-1, nx*ny, 1])
+x_test = np.reshape(x_test, [-1, nx*ny, 1])
 psf_train = np.reshape(psf_train, [-1, nx, ny, 1])
 psf_test = np.reshape(psf_test, [-1, nx, ny, 1])
 
@@ -197,18 +193,18 @@ psf_test = psf_test.astype('float32')
 
 # network parameters
 input_shape = (nx, ny, 1)
-
-
 batch = 32
 kernel_size = 4
 n_conv = 2
 filters = 8
-interm_dim1 = 2048
-interm_dim2 = 512
-interm_dim3 = 256
-interm_dim4 = 128
+shape = (60, 60, 1)
+interm_dim1 = 3600
+interm_dim2 = 4096
+interm_dim3 = 1024
+interm_dim4 = 256
+interm_dim5 = 128
 latent_dim = 32
-epochs = 20
+epochs = 1000
 drop = 0.1
 l1_ = 0.01
 l2_ = 0.01
@@ -221,9 +217,13 @@ decay_rate = 1e-1
 
 # VAE model = encoder + decoder
 # build encoder model
-inputs = Input(shape=input_shape, name='encoder_input')
-params = Input(shape=(y_train.shape[1],))
-x = concat([inputs, params])
+
+xin = Input(shape=(nx*ny, ), name='x_input')
+cond = Input(shape=(nparams, ), name='conditions')
+
+inputs = concatenate([xin, cond])
+x = Dense(interm_dim1, activation='relu')(inputs)
+x = Reshape((shape[1], shape[2], shape[3]))(x)
 for i in range(n_conv):
     filters *= 2
     x = Conv2D(filters=filters,
@@ -233,46 +233,48 @@ for i in range(n_conv):
                padding='same')(x)
 
 # shape info needed to build decoder model
-shape = K.int_shape(x)
+shape2 = K.int_shape(x)
 
 # generate latent vector Q(z|X)
 x = Flatten()(x)
-x = Dense(interm_dim1, activation='relu')(x)
 x = Dense(interm_dim2, activation='relu')(x)
 x = Dropout(drop)(x)
 x = Dense(interm_dim3, activation='relu')(x)
 x = Dense(interm_dim4, activation='relu')(x)
+x = Dense(interm_dim5, activation='relu')(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
 # use reparameterization trick to push the sampling out as input
 # note that "output_shape" isn't necessary with the TensorFlow backend
 z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
-zc = concat([z, params])
 
 # instantiate encoder model
-encoder = Model([inputs, params], [z_mean, z_log_var, z], name='encoder')
+encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
-plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
+# plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
 
 # DECODER
 
-latent_inputs1 = Input(shape=zc.shape, name='z_sampling')
+# latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
 # psf_inputs1 = Input(shape=input_shape, name='psf_input1')
+latent_inputs1 = concatenate([z, cond])
 
-x1 = Dense(interm_dim4, activation='relu')(latent_inputs1)
+x1 = Dense(interm_dim5, activation='relu')(latent_inputs1)
+x1 = Dense(interm_dim4, activation='relu')(x1)
 x1 = Dense(interm_dim3, activation='relu')(x1)
 x1 = Dropout(drop)(x1)
 x1 = Dense(interm_dim2, activation='relu')(x1)
-x1 = Dense(interm_dim1, activation='relu')(x1)
-x1 = Dense(shape[1] * shape[2] * shape[3], activation='relu')(x1)
-x1 = Reshape((shape[1], shape[2], shape[3]))(x1)
+x1 = Dense(shape2[1] * shape2[2] * shape2[3], activation='relu')(x1)
+x1 = Reshape((shape2[1], shape2[2], shape2[3]))(x1)
 
 for i in range(n_conv):
     x1 = Conv2DTranspose(filters=filters, kernel_size=kernel_size, activation='relu', strides=2, padding='same')(x1)
     filters //= 2
+x1 = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x1)
 
-outputs = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x1)
+x1 = Dense(nx+ny, activation='relu')(x1)
+outputs1 = Reshape(input_shape)(x1)
 
 # outputs1 = GaussianNoise(stddev=1)(x1)
 # outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
@@ -292,8 +294,8 @@ decoder2.summary()
 # decoder_nopsfnoise = Model(latent_inputs1, outputs, name='decoder_nopsfnoise')
 
 # instantiate VAE model
-outputs = decoder2([decoder1(concat(encoder(x)[2], params)), psf_inputs])
-vae = Model([[inputs, params], psf_inputs], outputs, name='vae')
+outputs = decoder2([decoder1([encoder([xin, cond])[2], cond]), psf_inputs])
+vae = Model([xin, cond, psf_inputs], outputs, name='vae')
 
 ####### main function #######
 # parser = argparse.ArgumentParser()
@@ -319,7 +321,7 @@ kl_loss *= -0.5
 vae_loss = K.mean(reconstruction_loss + kl_loss)
 
 vae.add_loss(vae_loss)
-vae.compile(optimizer='adam')
+vae.compile(optimizer='rmsprop')
 K.set_value(vae.optimizer.lr, learning_rate)
 K.set_value(vae.optimizer.decay, decay_rate)
 vae.summary()
@@ -331,22 +333,24 @@ checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_wei
 callback_list = [checkpoint, EarlyStopping(patience=5)]
 
 # Resume training from previous epochs
+checkpoints_path = os.listdir(DataDir+'checkpoints/')
+if checkpoints_path:
+    vae.load_weights(DataDir+'checkpoints/'+checkpoints_path[-1])
+    n_epoch = int(checkpoints_path[-1][8:12])
+else:
+    n_epoch = 0
 
-# if args.weights:
-#     vae.load_weights(args.weights)
-# else:
 # train the autoencoder
-vae.fit({'encoder_input': [x_train, y_train], 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, validation_data=({'encoder_input': [x_test, y_test], 'psf_inputs': psf_test}, None), callbacks=callback_list)
-# vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
+vae.fit({'x_input': x_train, 'conditions': y_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, initial_epoch=n_epoch, validation_data=({'encoder_input': x_test, 'conditions': y_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
 
 # Save weights and models
-vae.save(DataDir+'models/cvae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-vae.save_weights(DataDir+'models/cvae_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-encoder.save(DataDir+'models/cvae_encoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-encoder.save_weights(DataDir+'models/cvae_encoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-decoder1.save(DataDir+'models/cvae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-decoder1.save_weights(DataDir+'models/cvae_decoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-decoder2.save(DataDir+'models/cvae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+vae.save(DataDir+'models/cond_vae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+vae.save_weights(DataDir+'models/cond_vae_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+encoder.save(DataDir+'models/cond_vae_encoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+encoder.save_weights(DataDir+'models/cond_vae_encoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder1.save(DataDir+'models/cond_vae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder1.save_weights(DataDir+'models/cond_vae_decoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder2.save(DataDir+'models/cond_vae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 
 # -------------- Training and testing sets encoding decoding -----------------
 
@@ -360,15 +364,15 @@ x_test_encoded = K.cast_to_floatx(x_test_encoded)
 x_test_decoded = decoder1.predict(x_test_encoded[0])
 x_test_decoded_conv = decoder2.predict([x_test_decoded, psf_test])
 
-np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(n_train)+'.txt', x_train_encoded[2])
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded_conv[:, :, :, 0], (x_train_decoded_conv.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_vae_cosmos_encoded_xtrain_'+str(n_train)+'.txt', x_train_encoded[2])
+np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_psf_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded_conv[:, :, :, 0], (x_train_decoded_conv.shape[0], nx*ny)))
 
-np.savetxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(n_test)+'.txt', x_test_encoded[2])
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
-np.savetxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded_conv[:, :, :, 0], (x_test_decoded_conv.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_vae_cosmos_encoded_xtest_'+str(n_test)+'.txt', x_test_encoded[2])
+np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded_conv[:, :, :, 0], (x_test_decoded_conv.shape[0], nx*ny)))
 
-# np.savetxt(DataDir+'cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
+# np.savetxt(DataDir+'cond_vae_encoded_xtestP'+'.txt', x_test_encoded[0])
 # ---------------------- GP fitting -------------------------------
 
 
@@ -413,10 +417,10 @@ def gp_predict(model, params):
 # print('GP training ...')
 # gpmodel = gp_fit(x_train_encoded[0], y_train)
 # x_test_gp_encoded = gp_predict(gpmodel, y_test)
-# np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
+# np.savetxt(DataDir + 'models/cond_vae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
 # x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
-# np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
+# np.savetxt(DataDir + 'models/cond_vae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
 
 
 # image_size = nx
@@ -466,7 +470,7 @@ def gp_predict(model, params):
 #     plt.scatter(x_test_encoded[0][:, w1], x_test_encoded[0][:, w2], c=y_test[:, 0], cmap='copper')
 #     plt.colorbar()
 #     # plt.title(fileOut)
-#     plt.savefig('cvae_Scatter_z'+'.png')
+#     plt.savefig('cond_vae_Scatter_z'+'.png')
 
 #     # Plot losses
 #     n_epochs = np.arange(1, epochs+1)

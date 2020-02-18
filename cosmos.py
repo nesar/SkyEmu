@@ -51,8 +51,8 @@ def load_params(index, catalog, params_data, params_labels):
 nx = 64
 ny = 64
 pixel_scale = 0.03
-n_train = 200
-n_test = 20
+n_train = 20000
+n_test = 2000
 
 if not os.path.isdir('../Data/output_cosmos'):
     os.mkdir('../Data/output_cosmos')

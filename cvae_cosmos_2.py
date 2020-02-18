@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import h5py
-import GPy
+# import GPy
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -124,7 +124,7 @@ def plot_results(models,
     plt.ylabel("z[1]")
     plt.imshow(figure, cmap='Greys_r')
     plt.savefig(filename)
-    plt.show()
+    # plt.show()
 
 # ------------------------------ LOAD DATA ----------------------------------
 
@@ -316,7 +316,7 @@ vae.summary()
 # plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
 # Introduce Checkpoints
-filepath = DataDir+'checkpoints/weights.{epoch:03d}_{val_loss:.2f}.hdf5'
+filepath = DataDir+'checkpoints/weights.{epoch:04d}_{val_loss:.2f}.hdf5'
 checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_weights_only=True, period=10)
 callback_list = [checkpoint, EarlyStopping(patience=5)]
 
@@ -324,16 +324,12 @@ callback_list = [checkpoint, EarlyStopping(patience=5)]
 checkpoints_path = os.listdir(DataDir+'checkpoints/')
 if checkpoints_path:
     vae.load_weights(DataDir+'checkpoints/'+checkpoints_path[-1])
-    n_epoch = int(checkpoints_path[-1][8:11])
+    n_epoch = int(checkpoints_path[-1][8:12])
 else:
     n_epoch = 0
 
-# if args.weights:
-#     vae.load_weights(args.weights)
-# else:
 # train the autoencoder
 vae.fit({'encoder_input': x_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, initial_epoch=n_epoch, validation_data=({'encoder_input': x_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
-# vae.fit(x_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, None))
 
 # Save weights and models
 vae.save(DataDir+'models/cvae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
@@ -406,13 +402,13 @@ def gp_predict(model, params):
     return predic[0]
 
 
-print('GP training ...')
-gpmodel = gp_fit(x_train_encoded[0], y_train)
-x_test_gp_encoded = gp_predict(gpmodel, y_test)
-np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
+# print('GP training ...')
+# gpmodel = gp_fit(x_train_encoded[0], y_train)
+# x_test_gp_encoded = gp_predict(gpmodel, y_test)
+# np.savetxt(DataDir + 'models/cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
-x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
-np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
+# x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
+# np.savetxt(DataDir + 'models/cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
 
 
 # image_size = nx

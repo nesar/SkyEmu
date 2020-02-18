@@ -426,36 +426,36 @@ def plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test):
     embedding_train = reducer.fit_transform(x_train_encoded)
     embedding_test = reducer.transform(x_test_encoded)
     plt.figure()
-    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 0].flatten(), cmap='bone', norm=LogNorm())
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 0].flatten(), s=1, cmap='bone', norm=LogNorm())
     plt.colorbar()
-    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 0].flatten(), cmap='Wistia', norm=LogNorm())
+    # plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 0].flatten(), cmap='Wistia', norm=LogNorm())
     plt.colorbar()
     plt.tight_layout()
     plt.savefig(PlotDir+'cosmos_umap_flux.png', figsize=(20000, 20000), bbox_inches="tight")
     plt.close()
 
     plt.figure()
-    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 1].flatten(), cmap='bone', norm=LogNorm())
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 1].flatten(), s=1, cmap='bone', norm=LogNorm())
     plt.colorbar()
-    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 1].flatten(), cmap='Wistia', norm=LogNorm())
+    # plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 1].flatten(), cmap='Wistia', norm=LogNorm())
     plt.colorbar()
     plt.tight_layout()
     plt.savefig(PlotDir+'cosmos_umap_hlr.png', figsize=(20000, 20000), bbox_inches="tight")
     plt.close()
 
     plt.figure()
-    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 2].flatten(), cmap='bone', norm=LogNorm())
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 2].flatten(), s=1, cmap='bone', norm=LogNorm())
     plt.colorbar()
-    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 2].flatten(), cmap='Wistia', norm=LogNorm())
+    # plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 2].flatten(), cmap='Wistia', norm=LogNorm())
     plt.colorbar()
     plt.tight_layout()
     plt.savefig(PlotDir+'cosmos_umap_q.png', figsize=(20000, 20000), bbox_inches="tight")
     plt.close()
 
     plt.figure()
-    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 3].flatten(), cmap='bone', norm=LogNorm())
+    plt.scatter(embedding_train[:, 0], embedding_train[:, 1], c=y_train[:, 3].flatten(), s=1, cmap='bone', norm=LogNorm())
     plt.colorbar()
-    plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 3].flatten(), cmap='Wistia', norm=LogNorm())
+    # plt.scatter(embedding_test[:, 0], embedding_test[:, 1], c=y_test[:, 3].flatten(), cmap='Wistia', norm=LogNorm())
     plt.colorbar()
     plt.tight_layout()
     plt.savefig(PlotDir+'cosmos_umap_phi.png', figsize=(20000, 20000), bbox_inches="tight")
@@ -581,8 +581,8 @@ def main(args):
     # ------------------------ Parameters ---------------------------------------
     DataDir = '../Data/Cosmos/'
     PlotDir = '../Plots/Cosmos_plots/'
-    ntrain = 4096
-    ntest = 256
+    ntrain = 20000
+    ntest = 2000
     nx = 64
     ny = 64
 
@@ -630,15 +630,15 @@ def main(args):
     # decoder = load_model(DataDir+'Galsim/cvae_decoder_model_galsim.h5')
     # x_test_decoded = np.zeros((ntest, nx, ny))
     # x_test_decoded = decoder.predict(x_test_encoded)
-    # x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    x_test_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtest_'+str(ntest)+'.txt'), (ntest, nx, ny))
     x_test_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtest_'+str(ntest)+'.txt')
-    x_test_gp_encoded = np.loadtxt(DataDir + 'models/cvae_cosmos_maf_encoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt')
-    x_test_gp_decoded = np.reshape(np.loadtxt(DataDir + 'models/cvae_cosmos_maf_decoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt'), (ntest, nx, ny))
+    # x_test_gp_encoded = np.loadtxt(DataDir + 'models/cvae_cosmos_maf_encoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt')
+    # x_test_gp_decoded = np.reshape(np.loadtxt(DataDir + 'models/cvae_cosmos_maf_decoded_xtest_'+str(ntrain)+'_'+str(ntest)+'.txt'), (ntest, nx, ny))
 
     # Load reconstructed training set
-    # x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
-    # x_train_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    x_train_decoded = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
+    x_train_decoded_psf = np.reshape(np.loadtxt(DataDir+'models/cvae_cosmos_decoded_psf_xtrain_'+str(ntrain)+'.txt'), (ntrain, nx, ny))
     x_train_encoded = np.loadtxt(DataDir+'models/cvae_cosmos_encoded_xtrain_'+str(ntrain)+'.txt')
 
     # -------------------- Plotting routines --------------------------
@@ -649,14 +649,14 @@ def main(args):
     # mse, r2 = mse_r2(PlotDir, x_test, x_test_decoded_psf)
     # print('Plot pixel intensity ...')
     # pixel_intensity(PlotDir, x_test, x_test_decoded_psf)
-    print('Plot GP ...')
-    plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_psf, x_test_gp_decoded)
+    # print('Plot GP ...')
+    # plot_gps(PlotDir, x_test, x_test_encoded, x_test_gp_encoded, x_test_decoded_psf, x_test_gp_decoded)
     # print('Plot shear estimation ...')
     # diff_g1, diff_g2 = shear_estimation(PlotDir, x_test, x_test_decoded_psf, np.zeros(x_test.shape))
     # print('Plot latent space ...')
     # latent_space(PlotDir, x_train_encoded, x_test_encoded, y_train, y_train_sersic, y_train_bulge, y_test, y_test_sersic, y_test_bulge)
-    # print('Plot umap ...')
-    # plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test)
+    print('Plot umap ...')
+    plot_umap(PlotDir, x_train_encoded, x_test_encoded, y_train, y_test)
     # print('Plot params ...')
     # plot_params(PlotDir, y_train[:, :4], y_test[:, :4])
 
