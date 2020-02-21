@@ -29,8 +29,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 # Convolution with PSF function
 def psf_convolve(args):
     img, psf = args
-    imgfft = tf.spectral.rfft2d(img[:, :, :, 0])
-    psffft = tf.spectral.rfft2d(psf[:, :, :, 0])
+    imgfft = tf.spectral.rfft2d(img[:, :, :])
+    psffft = tf.spectral.rfft2d(psf[:, :, :])
     convfft = tf.spectral.irfft2d(imgfft * psffft)
     h = tf.expand_dims(convfft, axis=-1)
     return h
@@ -152,7 +152,7 @@ x_train = np.reshape(x_train, (n_train, nx*ny))
 # Load training set parameters and rescale
 y_train = np.array(f['parameters'])
 ymean = np.mean(y_train, axis=0)
-ymax = np.mean(y_train - ymean, axis=0)
+ymax = np.max(abs(y_train - ymean), axis=0)
 y_train = (y_train - ymean) * ymax**-1
 
 # Load training set psfs
@@ -183,12 +183,12 @@ y_test = K.cast_to_floatx(y_test)
 psf_train = K.cast_to_floatx(psf_train)
 psf_test = K.cast_to_floatx(psf_test)
 
-x_train = np.reshape(x_train, [-1, nx*ny, 1])
-x_test = np.reshape(x_test, [-1, nx*ny, 1])
-y_train = np.reshape(y_train, [-1, nparams, 1])
-y_test = np.reshape(y_test, [-1, nparams, 1])
-psf_train = np.reshape(psf_train, [-1, nx, ny, 1])
-psf_test = np.reshape(psf_test, [-1, nx, ny, 1])
+x_train = np.reshape(x_train, [-1, nx*ny, ])
+x_test = np.reshape(x_test, [-1, nx*ny, ])
+y_train = np.reshape(y_train, [-1, nparams, ])
+y_test = np.reshape(y_test, [-1, nparams, ])
+psf_train = np.reshape(psf_train, [-1, nx, ny, ])
+psf_test = np.reshape(psf_test, [-1, nx, ny, ])
 
 x_train = x_train.astype('float32')  # / 255
 x_test = x_test.astype('float32')  # / 255
@@ -198,8 +198,8 @@ psf_train = psf_train.astype('float32')
 psf_test = psf_test.astype('float32')
 
 # network parameters
-input_shape = (nx, ny, 1)
-batch = 32
+input_shape = (nx, ny, )
+batch = 12
 kernel_size = 4
 n_conv = 2
 filters = 8
@@ -229,7 +229,7 @@ cond = Input(shape=(nparams, ), name='conditions')
 
 inputs = concatenate([xin, cond])
 x = Dense(interm_dim1, activation='relu')(inputs)
-x = Reshape((shape[1], shape[2], shape[3]))(x)
+x = Reshape((shape[0], shape[1], shape[2]))(x)
 for i in range(n_conv):
     filters *= 2
     x = Conv2D(filters=filters,
@@ -256,15 +256,15 @@ z_log_var = Dense(latent_dim, name='z_log_var')(x)
 z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 
 # instantiate encoder model
-encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
+encoder = Model([xin, cond], [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
 # plot_model(encoder, to_file=DataDir+'Figs/vae_cnn_encoder_cosmos.png', show_shapes=True)
 
 # DECODER
 
-# latent_inputs1 = Input(shape=(latent_dim,), name='z_sampling')
+zin = Input(shape=(latent_dim, ), name='z_sampling')
 # psf_inputs1 = Input(shape=input_shape, name='psf_input1')
-latent_inputs1 = concatenate([z, cond])
+latent_inputs1 = concatenate([zin, cond])
 
 x1 = Dense(interm_dim5, activation='relu')(latent_inputs1)
 x1 = Dense(interm_dim4, activation='relu')(x1)
@@ -279,14 +279,16 @@ for i in range(n_conv):
     filters //= 2
 x1 = Conv2DTranspose(filters=1, kernel_size=kernel_size, activation='sigmoid', padding='same', name='decoder_output')(x1)
 
-x1 = Dense(nx+ny, activation='relu')(x1)
+x1 = Flatten()(x1)
+
+x1 = Dense(nx*ny, activation='relu')(x1)
 outputs1 = Reshape(input_shape)(x1)
 
 # outputs1 = GaussianNoise(stddev=1)(x1)
 # outputs1 = Lambda(poisson_noise, output_shape=input_shape)(x1)
 
 # instantiate decoder model
-decoder1 = Model(latent_inputs1, outputs, name='decoder')
+decoder1 = Model([zin, cond], outputs1, name='decoder')
 decoder1.summary()
 
 dec_inputs2 = Input(shape=input_shape, name='dec_inputs2')
@@ -317,7 +319,7 @@ vae = Model([xin, cond, psf_inputs], outputs, name='vae')
 # if args.mse:
 #     reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
 # else:
-reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
+reconstruction_loss = mse(K.flatten(xin), K.flatten(outputs))
 
 # reconstruction_loss *= nx * ny * tf.math.reduce_mean(inputs)**-1
 reconstruction_loss *= nx * ny
@@ -334,20 +336,20 @@ vae.summary()
 # plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
 # Introduce Checkpoints
-filepath = DataDir+'checkpoints/weights.{epoch:04d}_{val_loss:.2f}.hdf5'
+filepath = DataDir+'checkpoints_cond/weights.{epoch:04d}_{val_loss:.2f}.hdf5'
 checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_weights_only=True, period=10)
 callback_list = [checkpoint, EarlyStopping(patience=5)]
 
 # Resume training from previous epochs
-checkpoints_path = os.listdir(DataDir+'checkpoints/')
+checkpoints_path = os.listdir(DataDir+'checkpoints_cond/')
 if checkpoints_path:
-    vae.load_weights(DataDir+'checkpoints/'+checkpoints_path[-1])
+    vae.load_weights(DataDir+'checkpoints_cond/'+checkpoints_path[-1])
     n_epoch = int(checkpoints_path[-1][8:12])
 else:
     n_epoch = 0
 
 # train the autoencoder
-vae.fit({'x_input': x_train, 'conditions': y_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, initial_epoch=n_epoch, validation_data=({'encoder_input': x_test, 'conditions': y_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
+vae.fit({'x_input': x_train, 'conditions': y_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, initial_epoch=n_epoch, validation_data=({'x_input': x_test, 'conditions': y_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
 
 # Save weights and models
 vae.save(DataDir+'models/cond_vae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
