@@ -336,14 +336,14 @@ vae.summary()
 # plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
 # Introduce Checkpoints
-filepath = DataDir+'checkpoints_cond/weights.{epoch:04d}_{val_loss:.2f}.hdf5'
+filepath = DataDir+'checkpoints_cond_cvae/weights.{epoch:04d}_{val_loss:.2f}.hdf5'
 checkpoint = ModelCheckpoint(filepath, verbose=1, save_best_only=False, save_weights_only=True, period=10)
 callback_list = [checkpoint, EarlyStopping(patience=5)]
 
 # Resume training from previous epochs
 checkpoints_path = os.listdir(DataDir+'checkpoints_cond/')
 if checkpoints_path:
-    vae.load_weights(DataDir+'checkpoints_cond/'+checkpoints_path[-1])
+    vae.load_weights(DataDir+'checkpoints_cond_cvae/'+checkpoints_path[-1])
     n_epoch = int(checkpoints_path[-1][8:12])
 else:
     n_epoch = 0
@@ -352,13 +352,13 @@ else:
 vae.fit({'x_input': x_train, 'conditions': y_train, 'psf_inputs': psf_train}, batch_size=batch, epochs=epochs, initial_epoch=n_epoch, validation_data=({'x_input': x_test, 'conditions': y_test, 'psf_inputs': psf_test}, None), callbacks=callback_list)
 
 # Save weights and models
-vae.save(DataDir+'models/cond_vae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-vae.save_weights(DataDir+'models/cond_vae_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-encoder.save(DataDir+'models/cond_vae_encoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-encoder.save_weights(DataDir+'models/cond_vae_encoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-decoder1.save(DataDir+'models/cond_vae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-decoder1.save_weights(DataDir+'models/cond_vae_decoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
-decoder2.save(DataDir+'models/cond_vae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+vae.save(DataDir+'models/cond_cvae_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+vae.save_weights(DataDir+'models/cond_cvae_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+encoder.save(DataDir+'models/cond_cvae_encoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+encoder.save_weights(DataDir+'models/cond_cvae_encoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder1.save(DataDir+'models/cond_cvae_decoder_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder1.save_weights(DataDir+'models/cond_cvae_decoder_weights_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
+decoder2.save(DataDir+'models/cond_cvae_psf_model_cosmos_'+str(n_train)+'_train_'+str(n_test)+'_test.h5')
 
 # -------------- Training and testing sets encoding decoding -----------------
 
@@ -372,15 +372,15 @@ x_test_encoded = K.cast_to_floatx(x_test_encoded)
 x_test_decoded = decoder1.predict(x_test_encoded[0])
 x_test_decoded_conv = decoder2.predict([x_test_decoded, psf_test])
 
-np.savetxt(DataDir+'models/cond_vae_cosmos_encoded_xtrain_'+str(n_train)+'.txt', x_train_encoded[2])
-np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
-np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_psf_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded_conv[:, :, :, 0], (x_train_decoded_conv.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_cvae_cosmos_encoded_xtrain_'+str(n_train)+'.txt', x_train_encoded[2])
+np.savetxt(DataDir+'models/cond_cvae_cosmos_decoded_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded[:, :, :, 0], (x_train_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_cvae_cosmos_decoded_psf_xtrain_'+str(n_train)+'.txt', np.reshape(x_train_decoded_conv[:, :, :, 0], (x_train_decoded_conv.shape[0], nx*ny)))
 
-np.savetxt(DataDir+'models/cond_vae_cosmos_encoded_xtest_'+str(n_test)+'.txt', x_test_encoded[2])
-np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
-np.savetxt(DataDir+'models/cond_vae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded_conv[:, :, :, 0], (x_test_decoded_conv.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_cvae_cosmos_encoded_xtest_'+str(n_test)+'.txt', x_test_encoded[2])
+np.savetxt(DataDir+'models/cond_cvae_cosmos_decoded_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded[:, :, :, 0], (x_test_decoded.shape[0], nx*ny)))
+np.savetxt(DataDir+'models/cond_cvae_cosmos_decoded_psf_xtest_'+str(n_test)+'.txt', np.reshape(x_test_decoded_conv[:, :, :, 0], (x_test_decoded_conv.shape[0], nx*ny)))
 
-# np.savetxt(DataDir+'cond_vae_encoded_xtestP'+'.txt', x_test_encoded[0])
+# np.savetxt(DataDir+'cond_cvae_encoded_xtestP'+'.txt', x_test_encoded[0])
 # ---------------------- GP fitting -------------------------------
 
 
@@ -425,10 +425,10 @@ def gp_predict(model, params):
 # print('GP training ...')
 # gpmodel = gp_fit(x_train_encoded[0], y_train)
 # x_test_gp_encoded = gp_predict(gpmodel, y_test)
-# np.savetxt(DataDir + 'models/cond_vae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
+# np.savetxt(DataDir + 'models/cond_cvae_cosmos_gp_encoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', x_test_gp_encoded)
 
 # x_test_gp_decoded = decoder2.predict([decoder1.predict(x_test_gp_encoded), psf_test])
-# np.savetxt(DataDir + 'models/cond_vae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
+# np.savetxt(DataDir + 'models/cond_cvae_cosmos_gp_decoded_xtest_'+str(n_train)+'_'+str(n_test)+'.txt', np.reshape(x_test_gp_decoded, (n_test, nx*ny)))
 
 
 # image_size = nx
@@ -478,7 +478,7 @@ def gp_predict(model, params):
 #     plt.scatter(x_test_encoded[0][:, w1], x_test_encoded[0][:, w2], c=y_test[:, 0], cmap='copper')
 #     plt.colorbar()
 #     # plt.title(fileOut)
-#     plt.savefig('cond_vae_Scatter_z'+'.png')
+#     plt.savefig('cond_cvae_Scatter_z'+'.png')
 
 #     # Plot losses
 #     n_epochs = np.arange(1, epochs+1)
